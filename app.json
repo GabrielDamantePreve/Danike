@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Danikes",
-    "slug": "Danikes",
+    "slug": "pizzaria-danikes",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -15,7 +15,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.gabriel_damante.pizzariadanikes"
     },
     "web": {
       "bundler": "metro",
@@ -36,6 +37,19 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f508ba1a-07e7-4811-9d48-74dc98a7609e"
+      }
+    },
+    "owner": "gabriel_damante",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f508ba1a-07e7-4811-9d48-74dc98a7609e"
     }
   }
 }
