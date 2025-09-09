@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { captureRef } from 'react-native-view-shot';
+import domtoimage from 'dom-to-image';
 import { useState, useRef } from 'react';
 
 import Button from '@/components/Button';
@@ -23,7 +24,6 @@ export default function Index() {
   const [pickedEmoji, setPickedEmoji] = useState<ImageSourcePropType | undefined>(undefined);
   const [status, requestPermission] = MediaLibrary.usePermissions();
   const imageRef = useRef(null);
-
 
   const pickImageAsync = async () => {
     try {
@@ -76,25 +76,41 @@ export default function Index() {
 
       // Capture the view
       if (imageRef.current) {
-        const localUri = await captureRef(imageRef.current, {
-          height: 440,
-          quality: 1,
-        });
-
-        // Save to media library
-        if (Platform.OS !== 'web') {
+        let localUri;
+        
+        if (Platform.OS === 'web') {
+          // Use dom-to-image for web platform
+          const dataUrl = await domtoimage.toPng(imageRef.current, {
+            quality: 0.95,
+            width: 440,
+            height: 440,
+          });
+          
+          // Create download link for web
+          const link = document.createElement('a');
+          link.download = 'sticker-image.png';
+          link.href = dataUrl;
+          link.click();
+          
+          Alert.alert(
+            "Success",
+            "Image downloaded successfully!",
+            [{ text: "OK" }]
+          );
+        } else {
+          // Use react-native-view-shot for native platforms
+          localUri = await captureRef(imageRef.current, {
+            height: 440,
+            quality: 1,
+            format: 'png'
+          });
+          
           await MediaLibrary.saveToLibraryAsync(localUri);
           Alert.alert(
             "Success",
             "Image saved to your media library!",
             [{ text: "OK" }]
           );
-        } else {
-          // Handle web platform - create download link
-          const link = document.createElement('a');
-          link.download = 'sticker-image.png';
-          link.href = localUri;
-          link.click();
         }
       }
     } catch (error) {
@@ -120,7 +136,7 @@ export default function Index() {
           <View style={styles.optionsRow}>
             <IconButton icon="refresh" label="Reset" onPress={onReset} />
             <CircleButton onPress={onAddSticker} />
-            <IconButton icon="save-alt" label="Save" onPress={onSaveImageAsync} />
+            <IconButton icon="save-alt" label="Salvar Imagem" onPress={onSaveImageAsync} />
           </View>
         </View>
       ) : (
