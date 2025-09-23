@@ -2,6 +2,7 @@
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { colors } from '../theme';
 
 const { width } = Dimensions.get('window');
 
@@ -18,7 +19,7 @@ export default function PizzaCard({ name, description, price, rating }: PizzaCar
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#ffffff', '#f8f9fa']}
+  colors={[colors.surface, colors.surfaceAlt]}
         style={styles.card}
       >
         <View style={styles.imageContainer}>
@@ -66,7 +67,7 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     height: 120,
-    backgroundColor: '#FFF5F3',
+  backgroundColor: '#FFF5F3',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+  backgroundColor: 'rgba(255, 107, 53, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -90,7 +91,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#2D3436',
+  color: colors.text,
     flex: 1,
   },
   ratingContainer: {
@@ -105,11 +106,11 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontSize: 14,
     fontWeight: '600',
-    color: '#2D3436',
+  color: colors.text,
   },
   description: {
     fontSize: 14,
-    color: '#636E72',
+  color: colors.muted,
     lineHeight: 20,
     marginBottom: 16,
   },
@@ -120,6 +121,6 @@ const styles = StyleSheet.create({
   },  price: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FF6B35',
+  color: colors.primary,
   },
 });

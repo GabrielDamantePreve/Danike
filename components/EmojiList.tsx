@@ -22,15 +22,17 @@ export default function EmojiList({ onSelect, onCloseModal }: Props) {
       horizontal
       showsHorizontalScrollIndicator={Platform.OS === 'web'}
       data={emoji}
+      keyExtractor={(_, idx) => String(idx)}
       contentContainerStyle={styles.listContainer}
-      renderItem={({ item, index }) => (
+      renderItem={({ item }) => (
         <Pressable
           onPress={() => {
             onSelect(item);
             onCloseModal();
           }}
+          style={styles.itemWrapper}
         >
-          <Image source={item} key={index} style={styles.image} />
+          <Image source={item} style={styles.image} />
         </Pressable>
       )}
     />
@@ -39,16 +41,19 @@ export default function EmojiList({ onSelect, onCloseModal }: Props) {
 
 const styles = StyleSheet.create({
   listContainer: {
-    borderTopRightRadius: 10,
-    borderTopLeftRadius: 10,
-    paddingHorizontal: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
   image: {
-    width: 100,
-    height: 100,
-    marginRight: 20,
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    marginHorizontal: 8,
+  },
+  itemWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

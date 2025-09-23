@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTarefas } from '@/hooks/useTarefas';
 import ModernButton from '@/components/ModernButton';
+import { parseBrazilianPrice, colors } from '../../theme';
 
 const pizzaMenu = [
   { id: '1', name: 'Margherita', price: 35.90, description: 'Molho, mussarela, manjericão' },
@@ -20,40 +21,39 @@ export default function App() {
     const [selectedPizzas, setSelectedPizzas] = useState<{[key: string]: number}>({});
 
     const addPizzaToOrder = (pizza: typeof pizzaMenu[0]) => {
-        const orderText = `${pizza.name} - R$ ${pizza.price.toFixed(2)}`;
+        const orderText = `${pizza.name} - R$ ${pizza.price.toFixed(2).replace('.', ',')}`;
         setNovaTarefa(orderText);
         adicionarTarefa();
-        
+
         // Update selected pizzas count
         setSelectedPizzas(prev => ({
             ...prev,
             [pizza.id]: (prev[pizza.id] || 0) + 1
         }));
-        
+
         // Update total
-        setOrderTotal(prev => prev + pizza.price);
-    };    const removeOrderItem = (itemId: string, itemText: string) => {
-        // Extract price from the item text (format: "Pizza Name - R$ XX,XX")
-        const priceMatch = itemText.match(/R\$ ([\d,]+\.\d{2})/);
-        if (priceMatch) {
-            const price = parseFloat(priceMatch[1].replace(',', ''));
-            setOrderTotal(prev => Math.max(0, prev - price));
-            
-            // Update selected pizzas count (only for predefined pizzas)
-            const pizzaName = itemText.split(' - R$')[0];
-            const pizza = pizzaMenu.find(p => p.name === pizzaName);
-            if (pizza) {
-                setSelectedPizzas(prev => {
-                    const newCount = Math.max(0, (prev[pizza.id] || 0) - 1);
-                    if (newCount === 0) {
-                        const { [pizza.id]: removed, ...rest } = prev;
-                        return rest;
-                    }
-                    return { ...prev, [pizza.id]: newCount };
-                });
-            }
+        setOrderTotal(prev => +(prev + pizza.price).toFixed(2));
+    };
+
+    const removeOrderItem = (itemId: string, itemText: string) => {
+        // Use helper to parse price
+        const price = parseBrazilianPrice(itemText ?? '') ?? 0;
+        setOrderTotal(prev => Math.max(0, +(prev - price).toFixed(2)));
+
+        // Update selected pizzas count (only for predefined pizzas)
+        const pizzaName = (itemText || '').split(' - R$')[0];
+        const pizza = pizzaMenu.find(p => p.name === pizzaName);
+        if (pizza) {
+            setSelectedPizzas(prev => {
+                const newCount = Math.max(0, (prev[pizza.id] || 0) - 1);
+                if (newCount === 0) {
+                    const { [pizza.id]: removed, ...rest } = prev;
+                    return rest;
+                }
+                return { ...prev, [pizza.id]: newCount };
+            });
         }
-        
+
         // Remove the item from the list
         removeTarefa(itemId);
     };
@@ -101,7 +101,7 @@ export default function App() {
     };
     
     return (
-        <LinearGradient colors={['#FF6B35', '#F7931E']} style={styles.container}>
+        <LinearGradient colors={[colors.primary, colors.accent]} style={styles.container}>
             <ScrollView showsVerticalScrollIndicator={false}>
                 {/* Header */}
                 <View style={styles.header}>
@@ -116,12 +116,12 @@ export default function App() {
                         <View key={pizza.id} style={styles.pizzaCard}>
                             <View style={styles.pizzaInfo}>
                                 <View style={styles.pizzaIconContainer}>
-                                    <Ionicons name="pizza" size={24} color="#FF6B35" />
+                                    <Ionicons name="pizza" size={24} color={colors.primary} />
                                 </View>
                                 <View style={styles.pizzaDetails}>
                                     <Text style={styles.pizzaName}>{pizza.name}</Text>
                                     <Text style={styles.pizzaDescription}>{pizza.description}</Text>
-                                    <Text style={styles.pizzaPrice}>R$ {pizza.price.toFixed(2)}</Text>
+                                    <Text style={styles.pizzaPrice}>R$ {pizza.price.toFixed(2).replace('.', ',')}</Text>
                                 </View>
                             </View>
                             <TouchableOpacity 
@@ -150,7 +150,7 @@ export default function App() {
                             value={novaTarefa} 
                             onChangeText={setNovaTarefa} 
                         />                        <TouchableOpacity style={styles.addCustomButton} onPress={addCustomOrder}>
-                            <Ionicons name="add-circle" size={30} color="#FF6B35" />
+                                    <Ionicons name="add-circle" size={30} color={colors.primary} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -164,7 +164,7 @@ export default function App() {
                                 <Text style={styles.totalText}>Total: R$ {orderTotal.toFixed(2)}</Text>
                             </View>
                         </View>
-                          <FlatList 
+                            <FlatList 
                             data={tarefas} 
                             keyExtractor={(item) => item.id} 
                             scrollEnabled={false}
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     title: { 
         fontSize: 28, 
         fontWeight: 'bold', 
-        color: 'white',
+        color: colors.textOnPrimary,
         textAlign: 'center', 
         textShadowColor: 'rgba(0, 0, 0, 0.3)',
         textShadowOffset: { width: 1, height: 1 },
@@ -221,12 +221,12 @@ const styles = StyleSheet.create({
     },
     subtitle: {
         fontSize: 16,
-        color: 'rgba(255, 255, 255, 0.9)',
+        color: 'rgba(255, 255, 255, 0.95)',
         textAlign: 'center',
         marginTop: 5,
     },
     menuSection: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
         marginHorizontal: 15,
         borderRadius: 20,
         padding: 20,
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#2D3436',
+    color: colors.text,
         marginBottom: 15,
         textAlign: 'center',
     },
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     },
     pizzaDescription: {
         fontSize: 12,
-        color: '#636E72',
+    color: colors.muted,
         marginBottom: 5,
     },
     pizzaPrice: {
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#FF6B35',
+    backgroundColor: colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
         position: 'relative',
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     countText: {
-        color: 'white',
+    color: colors.textOnPrimary,
         fontSize: 12,
         fontWeight: 'bold',
     },
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
         marginBottom: 15,
     },
     totalContainer: {
-        backgroundColor: '#FF6B35',
+        backgroundColor: colors.primary,
         paddingHorizontal: 15,
         paddingVertical: 8,
         borderRadius: 20,
@@ -363,12 +363,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        backgroundColor: '#F8F9FA', 
+    backgroundColor: colors.surfaceAlt, 
         padding: 15, 
         marginBottom: 8, 
         borderRadius: 12,
         borderLeftWidth: 4,
-        borderLeftColor: '#4CAF50',
+    borderLeftColor: colors.success,
     },
     orderItemInfo: {
         flexDirection: 'row',
@@ -377,14 +377,14 @@ const styles = StyleSheet.create({
     },
     orderItemText: { 
         fontSize: 14,
-        color: '#2D3436',
+    color: colors.text,
         marginLeft: 10,
         flex: 1,
     },
     removeButton: {
         padding: 8,
         borderRadius: 20,
-        backgroundColor: '#FFE0E0',
+    backgroundColor: '#FFE0E0',
     },
     finalizeButton: {
         marginTop: 15,

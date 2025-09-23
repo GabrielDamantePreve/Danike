@@ -2,6 +2,7 @@
 import { View, Text, StyleSheet, Pressable, ViewStyle, TextStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { gradients, colors } from '../theme';
 
 type ModernButtonProps = {
   title: string;
@@ -21,17 +22,11 @@ export default function ModernButton({
   icon, 
   disabled = false,
   style 
-}: ModernButtonProps) {  const getGradientColors = () => {
-    switch (variant) {
-      case 'primary':
-        return ['#FF6B35', '#FF8E53'] as const;
-      case 'secondary':
-        return ['#6C5CE7', '#A29BFE'] as const;
-      case 'outline':
-        return ['transparent', 'transparent'] as const;
-      default:
-        return ['#FF6B35', '#FF8E53'] as const;
-    }
+}: ModernButtonProps) {
+  const getGradientColors = (): string[] => {
+    if (variant === 'primary') return [...gradients.primary];
+    if (variant === 'secondary') return ['#6C5CE7', '#A29BFE'];
+    return ['transparent', 'transparent'];
   };
   const getButtonStyle = (): ViewStyle[] => {
     const baseStyles: ViewStyle[] = [styles.button];
@@ -65,7 +60,7 @@ export default function ModernButton({
       ]}
     >
       <LinearGradient
-        colors={getGradientColors()}
+        colors={getGradientColors() as [string, string]}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
@@ -75,7 +70,7 @@ export default function ModernButton({
             <Ionicons 
               name={icon as any} 
               size={size === 'small' ? 16 : size === 'large' ? 24 : 20} 
-              color={variant === 'outline' ? '#FF6B35' : 'white'} 
+              color={variant === 'outline' ? colors.primary : colors.textOnPrimary} 
               style={styles.icon}
             />
           )}
@@ -112,7 +107,7 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'white',
+    color: colors.textOnPrimary,
     textAlign: 'center',
   },
   icon: {
@@ -132,10 +127,10 @@ const styles = StyleSheet.create({
   },
   outline: {
     borderWidth: 2,
-    borderColor: '#FF6B35',
+    borderColor: colors.primary,
   },
   outlineText: {
-    color: '#FF6B35',
+    color: colors.primary,
   },
   disabled: {
     opacity: 0.5,

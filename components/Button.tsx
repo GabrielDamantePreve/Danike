@@ -1,5 +1,6 @@
 import { StyleSheet, View, Pressable, Text } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { colors } from '../theme';
 
 type Props = {
     label: string;
@@ -8,23 +9,22 @@ type Props = {
 };
 
 export default function Button({ label, theme, onPress }: Props) {
-    if (theme === 'primary') {
-        return (
-            <View style={[styles.buttonContainer,{ borderWidth: 4, borderColor: '#8B4513', borderRadius: 18 }]}>
-                <Pressable
-                    style={[styles.button, { backgroundColor: '#F39C12' }]} onPress={onPress}>
-                    <FontAwesome name="search" size={24} color="#8B4513" style={styles.buttonIcon} />
-                    <Text style={[styles.buttonLabel, { color: '#8B4513' }]}>{label}</Text>
-                </Pressable>
-            </View>
-        );
-    }
+    const isPrimary = theme === 'primary';
+    return (
+        <View style={[styles.buttonContainer, isPrimary && { borderWidth: 3, borderColor: colors.primaryDark, borderRadius: 18 }]}> 
+            <Pressable
+                style={[styles.button, { backgroundColor: isPrimary ? colors.primary : colors.surface }]} onPress={onPress}>
+                <FontAwesome name="search" size={20} color={isPrimary ? colors.textOnPrimary : colors.primary} style={styles.buttonIcon} />
+                <Text style={[styles.buttonLabel, { color: isPrimary ? colors.textOnPrimary : colors.text }]}>{label}</Text>
+            </Pressable>
+        </View>
+    );
 }
 
 const styles = StyleSheet.create({
     buttonContainer: {
-        width: 320,
-        height: 68,
+        width: 300,
+        height: 60,
         marginHorizontal: 20,
         alignItems: 'center',
         justifyContent: 'center',

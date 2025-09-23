@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import { Image, type ImageSource } from 'expo-image';
-import { forwardRef } from 'react';
+import React, { forwardRef } from 'react';
 
 type Props = {
     imgSource: ImageSource;
@@ -11,11 +11,11 @@ const ImageViewer = forwardRef<View, Props>(({ imgSource, selectedImage }, ref) 
     const imageSource = selectedImage ? { uri: selectedImage } : imgSource;
 
     return (
-        <View ref={ref} style={styles.container}>
+        <View ref={ref as any} style={styles.container}>
             <Image source={imageSource} style={styles.image} />
         </View>
     );
-})
+});
 
 export default ImageViewer;
 

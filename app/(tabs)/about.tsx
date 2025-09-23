@@ -3,6 +3,7 @@ import { Text, View, StyleSheet, ScrollView, Dimensions } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Card from '@/components/Card';
+import { colors } from '../../theme';
 
 const { width } = Dimensions.get('window');
 
@@ -31,7 +32,7 @@ const features = [
 
 export default function AboutScreen() {
   return (
-    <LinearGradient colors={['#FF6B35', '#F7931E', '#FFD700']} style={styles.container}>
+  <LinearGradient colors={[colors.primary, colors.accent, '#FFD700']} style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -59,7 +60,7 @@ export default function AboutScreen() {
             {features.map((feature, index) => (
               <View key={index} style={styles.featureCard}>
                 <View style={styles.featureIconContainer}>
-                  <Ionicons name={feature.icon as any} size={30} color="#FF6B35" />
+                  <Ionicons name={feature.icon as any} size={30} color={colors.primary} />
                 </View>
                 <Text style={styles.featureTitle}>{feature.title}</Text>
                 <Text style={styles.featureDescription}>{feature.description}</Text>
@@ -74,7 +75,7 @@ export default function AboutScreen() {
           
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
-              <Ionicons name="location" size={24} color="#FF6B35" />
+              <Ionicons name="location" size={24} color={colors.primary} />
               <View style={styles.infoText}>
                 <Text style={styles.infoTitle}>Localização</Text>
                 <Text style={styles.infoDescription}>Entregamos em toda a região!</Text>
@@ -84,7 +85,7 @@ export default function AboutScreen() {
 
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
-              <Ionicons name="time" size={24} color="#FF6B35" />
+              <Ionicons name="time" size={24} color={colors.primary} />
               <View style={styles.infoText}>
                 <Text style={styles.infoTitle}>Horário de Funcionamento</Text>
                 <Text style={styles.infoDescription}>Todos os dias: 18h às 23h</Text>
@@ -94,7 +95,7 @@ export default function AboutScreen() {
 
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
-              <Ionicons name="call" size={24} color="#FF6B35" />
+              <Ionicons name="call" size={24} color={colors.primary} />
               <View style={styles.infoText}>
                 <Text style={styles.infoTitle}>Contato</Text>
                 <Text style={styles.infoDescription}>Faça seu pedido na aba "Pedidos"</Text>
@@ -163,14 +164,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#2D3436',
+  color: colors.text,
     textAlign: 'center',
     marginBottom: 15,
   },
   storyText: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#636E72',
+  color: colors.muted,
     textAlign: 'justify',
   },
   featuresSection: {
@@ -197,7 +198,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#FFF5F3',
+  backgroundColor: '#FFF5F3',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
@@ -205,13 +206,13 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#2D3436',
+  color: colors.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   featureDescription: {
     fontSize: 12,
-    color: '#636E72',
+  color: colors.muted,
     textAlign: 'center',
     lineHeight: 16,
   },
@@ -262,7 +263,7 @@ const styles = StyleSheet.create({
   missionTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#FF6B35',
+  color: colors.primary,
     textAlign: 'center',
     marginBottom: 15,
   },
