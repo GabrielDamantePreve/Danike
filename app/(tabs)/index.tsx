@@ -1,24 +1,101 @@
 // app/tabs/index.tsx
-import { ImageSourcePropType, View, StyleSheet, Alert, Platform, Text, ScrollView } from 'react-native';
+import {
+  Alert,
+  ImageSourcePropType,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { colors, gradients } from '../../theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { captureRef } from 'react-native-view-shot';
 import domtoimage from 'dom-to-image';
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 
-import Button from '@/components/Button';
+import ModernButton from '@/components/ModernButton';
 import ImageViewer from '@/components/ImageViewer';
-import IconButton from '@/components/IconButton';
-import CircleButton from '@/components/CircleButton';
 import EmojiPicker from '@/components/EmojiPicker';
 import EmojiList from '@/components/EmojiList';
 import EmojiSticker from '@/components/EmojiSticker';
 
 const PlaceholderImage = require('@/assets/images/background-image.png');
+
+type FeatureHighlight = {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  description: string;
+};
+
+const featureHighlights: FeatureHighlight[] = [
+  {
+    icon: 'flame',
+    title: 'Forno a lenha autêntico',
+    description:
+      'Receitas de família assadas lentamente, com massa de fermentação natural e ingredientes selecionados.',
+  },
+  {
+    icon: 'color-palette',
+    title: 'Experiência sensorial completa',
+    description:
+      'Ambiente acolhedor, trilha sonora exclusiva e stickers personalizados para divulgar cada novidade.',
+  },
+  {
+    icon: 'share-social',
+    title: 'Compartilhe momentos',
+    description:
+      'Crie stickers temáticos em segundos, salve e envie para a galera marcar presença na Danike.',
+  },
+];
+
+const statHighlights = [
+  { value: '25k+', label: 'Clientes apaixonados por nossas pizzas' },
+  { value: '18', label: 'Sabores autorais no cardápio fixo' },
+  { value: '15 min', label: 'Para criar um sticker inesquecível' },
+];
+
+type QuickActionProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  variant?: 'default' | 'primary';
+};
+
+function QuickAction({ icon, label, onPress, variant = 'default' }: QuickActionProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.quickAction,
+        variant === 'primary' && styles.quickActionPrimary,
+        pressed && styles.quickActionPressed,
+      ]}
+    >
+      <Ionicons
+        name={icon}
+        size={20}
+        color={variant === 'primary' ? colors.textOnPrimary : colors.primary}
+        style={styles.quickActionIcon}
+      />
+      <Text
+        style={[
+          styles.quickActionLabel,
+          variant === 'primary' && styles.quickActionLabelPrimary,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
 
 export default function Index() {
   const [selectedImage, setSelectedImage] = useState<string | undefined>(undefined);
@@ -27,6 +104,8 @@ export default function Index() {
   const [pickedEmoji, setPickedEmoji] = useState<ImageSourcePropType | undefined>(undefined);
   const [status, requestPermission] = MediaLibrary.usePermissions();
   const imageRef = useRef<any>(null);
+  const { width } = useWindowDimensions();
+  const isWideLayout = width >= 960;
 
   const pickImageAsync = async () => {
     try {
@@ -108,50 +187,172 @@ export default function Index() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <LinearGradient colors={gradients.primary as [string, string]} style={styles.bg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
-            <Ionicons name="restaurant" size={32} color={colors.textOnPrimary} style={styles.logo} />
-            <Text style={styles.title}>Danike</Text>
-            <Text style={styles.subtitle}>Stickers divertidos em segundos</Text>
+      <LinearGradient
+        colors={gradients.primary as [string, string]}
+        style={styles.bg}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View pointerEvents="none" style={styles.decorativeLayer}>
+            <LinearGradient
+              colors={[
+                'rgba(255, 255, 255, 0.18)',
+                'rgba(255, 255, 255, 0)',
+              ]}
+              style={[styles.decorativeBlob, styles.blobTopLeft]}
+            />
+            <LinearGradient
+              colors={['rgba(255, 107, 53, 0.35)', 'rgba(255, 107, 53, 0)']}
+              style={[styles.decorativeBlob, styles.blobBottomRight]}
+            />
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0)']}
+              style={[styles.decorativeBlob, styles.blobCenter]}
+            />
           </View>
 
-          <View style={styles.mainContainer}>
-            <View style={styles.centerContent}>
-              <View style={styles.introBox}>
-                <Text style={styles.introTitle}>Bem-vindo à Pizzaria Danike!</Text>
-                <Text style={styles.introText}>
-                  Descubra o sabor autêntico da nossa pizzaria artesanal. Ingredientes frescos, ambiente acolhedor e experiências deliciosas para toda a família. Crie stickers divertidos com o tema da nossa pizzaria e compartilhe momentos especiais!
-                </Text>
+          <View style={[styles.contentWrapper, isWideLayout && styles.contentWrapperWide]}>
+            <BlurView
+              intensity={55}
+              tint="dark"
+              style={[styles.heroCard, isWideLayout && styles.heroCardWide]}
+            >
+              <View style={styles.heroBadge}>
+                <Ionicons
+                  name="restaurant"
+                  size={18}
+                  color={colors.textOnPrimary}
+                  style={styles.heroBadgeIcon}
+                />
+                <Text style={styles.heroBadgeText}>Clássicos da pizza artesanal</Text>
               </View>
-              <View style={styles.card}>
-                <ImageViewer ref={imageRef} imgSource={PlaceholderImage} selectedImage={selectedImage} />
-                {pickedEmoji && <EmojiSticker imageSize={56} stickerSource={pickedEmoji} />}
+
+              <Text style={styles.heroTitle}>Danike • Pizzaria &amp; Experiência Digital</Text>
+              <Text style={styles.heroSubtitle}>
+                Transforme a forma de divulgar a pizzaria com uma vitrine digital imersiva. Crie stickers
+                personalizados para cada sabor, compartilhe nas redes e encante a clientela em segundos.
+              </Text>
+
+              <View style={styles.statsRow}>
+                {statHighlights.map((stat, index) => (
+                  <View
+                    key={stat.label}
+                    style={[
+                      styles.statCard,
+                      index !== statHighlights.length - 1 && styles.statCardSpacing,
+                    ]}
+                  >
+                    <Text style={styles.statValue}>{stat.value}</Text>
+                    <Text style={styles.statLabel}>{stat.label}</Text>
+                  </View>
+                ))}
               </View>
-              <Text style={styles.hint}>Escolha uma foto, adicione emoji e salve</Text>
-              
-              {/* Botões alinhados com a página */}
-              {showAppOptions ? (
-                <View style={styles.optionsRow}>
-                  <IconButton icon="refresh" label="Resetar" onPress={onReset} />
-                  <CircleButton onPress={onAddSticker} />
-                  <IconButton icon="save-alt" label="Salvar" onPress={onSaveImageAsync} />
-                </View>
-              ) : (
-                <View style={styles.buttonColumn}>
-                  <View style={styles.actionButton}>
-                    <Button theme="primary" label="Escolher foto" onPress={pickImageAsync} />
+
+              <View style={styles.featureList}>
+                {featureHighlights.map((feature, index) => (
+                  <View
+                    key={feature.title}
+                    style={[
+                      styles.featureItem,
+                      index !== featureHighlights.length - 1 && styles.featureItemSpacing,
+                    ]}
+                  >
+                    <View style={styles.featureIconWrapper}>
+                      <Ionicons
+                        name={feature.icon}
+                        size={20}
+                        color={colors.textOnPrimary}
+                      />
+                    </View>
+                    <View style={styles.featureCopy}>
+                      <Text style={styles.featureTitle}>{feature.title}</Text>
+                      <Text style={styles.featureDescription}>{feature.description}</Text>
+                    </View>
                   </View>
-                  <View style={styles.actionButton}>
-                    <Button label="Usar esta foto" onPress={() => setShowAppOptions(true)} />
-                  </View>
+                ))}
+              </View>
+
+              {!showAppOptions && (
+                <View style={styles.heroButtons}>
+                  <ModernButton
+                    title="Selecionar foto da galeria"
+                    icon="image-outline"
+                    size="large"
+                    onPress={pickImageAsync}
+                  />
+                  <ModernButton
+                    title="Explorar foto padrão"
+                    variant="outline"
+                    icon="pizza-outline"
+                    onPress={() => setShowAppOptions(true)}
+                  />
                 </View>
               )}
-            </View>
+            </BlurView>
+
+            <BlurView
+              intensity={65}
+              tint="light"
+              style={[styles.previewCard, isWideLayout && styles.previewCardWide]}
+            >
+              <View style={styles.previewHeader}>
+                <Text style={styles.previewTitle}>Studio de stickers Danike</Text>
+                <Text style={styles.previewSubtitle}>
+                  Monte composições exclusivas com fotos, emojis e ilustrações para destacar o sabor do dia.
+                </Text>
+              </View>
+
+              <View style={styles.previewCanvasWrapper}>
+                <View
+                  ref={imageRef}
+                  collapsable={false}
+                  style={styles.previewCanvas}
+                >
+                  <ImageViewer imgSource={PlaceholderImage} selectedImage={selectedImage} />
+                  {pickedEmoji && <EmojiSticker imageSize={120} stickerSource={pickedEmoji} />}
+                </View>
+              </View>
+
+              <Text style={styles.previewHint}>
+                {showAppOptions
+                  ? 'Ajuste seus stickers, reposicione e salve o resultado em alta qualidade.'
+                  : 'Escolha uma imagem inspiradora e explore os recursos para criar um sticker irresistível.'}
+              </Text>
+
+              {showAppOptions ? (
+                <View style={styles.quickActionsRow}>
+                  <QuickAction icon="refresh" label="Resetar" onPress={onReset} />
+                  <QuickAction
+                    icon="add-circle"
+                    label="Adicionar emoji"
+                    onPress={onAddSticker}
+                    variant="primary"
+                  />
+                  <QuickAction
+                    icon="cloud-download"
+                    label="Salvar imagem"
+                    onPress={onSaveImageAsync}
+                  />
+                </View>
+              ) : (
+                <View style={styles.previewCtaFallback}>
+                  <ModernButton
+                    title="Quero começar agora"
+                    size="large"
+                    icon="star"
+                    onPress={() => setShowAppOptions(true)}
+                  />
+                </View>
+              )}
+            </BlurView>
           </View>
+          
+          <View style={styles.bottomSpacer} />
         </ScrollView>
-
-
 
         <EmojiPicker isVisible={isModalVisible} onClose={onModalClose}>
           <EmojiList onSelect={emoji => setPickedEmoji(emoji)} onCloseModal={onModalClose} />
@@ -162,21 +363,6 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    paddingVertical: 20,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 32,
-    paddingBottom: 32,
-    minHeight: '100%',
-  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -184,129 +370,268 @@ const styles = StyleSheet.create({
   bg: {
     flex: 1,
     width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 0,
-    paddingHorizontal: 0,
   },
-  header: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 48,
-    marginBottom: 24,
-  },
-  logo: {
-    marginBottom: 8,
-  },
-  title: {
-    color: colors.textOnPrimary,
-    fontSize: 28,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-    marginBottom: 2,
-  },
-  subtitle: {
-    color: colors.textOnPrimary,
-    opacity: 0.8,
-    fontSize: 15,
-    marginBottom: 0,
-  },
-  centerContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    maxWidth: 380,
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 16,
+    paddingVertical: 24,
+    paddingBottom: 120,
+    position: 'relative',
   },
-  introBox: {
-    width: '100%',
-    maxWidth: 380,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderRadius: 18,
-    paddingVertical: 18,
-    paddingHorizontal: 22,
-    marginBottom: 22,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  introTitle: {
-    color: colors.textOnPrimary,
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 6,
-    textAlign: 'center',
-    letterSpacing: 0.5,
-  },
-  introText: {
-    color: colors.textOnPrimary,
-    opacity: 0.92,
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-    fontWeight: '400',
-  },
-  card: {
-    width: 320,
-    height: 320,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
-    shadowRadius: 10,
-    elevation: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
-  },
-  hint: {
-    color: colors.textOnPrimary,
-    opacity: 0.85,
-    fontSize: 15,
-    textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 0,
-  },
-  bottomArea: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingBottom: 36,
-    paddingTop: 16,
-    backgroundColor: 'transparent',
+  decorativeLayer: {
     position: 'absolute',
+    top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 10,
+    zIndex: -1,
   },
-  optionsRow: {
+  decorativeBlob: {
+    position: 'absolute',
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    opacity: 0.8,
+  },
+  blobTopLeft: {
+    top: -80,
+    left: -60,
+  },
+  blobBottomRight: {
+    bottom: -100,
+    right: -90,
+  },
+  blobCenter: {
+    top: '38%',
+    right: '20%',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+  },
+  contentWrapper: {
+    width: '100%',
+    maxWidth: 1120,
+    alignSelf: 'center',
+  },
+  contentWrapperWide: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 24,
+  },
+  heroCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.18)',
+    marginBottom: 24,
+  },
+  heroCardWide: {
+    flex: 1,
+    marginRight: 28,
+    marginBottom: 0,
+    borderRadius: 32,
+    padding: 28,
+  },
+  heroBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  heroBadgeIcon: {
+    marginRight: 6,
+  },
+  heroBadgeText: {
+    color: colors.textOnPrimary,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  heroTitle: {
+    color: colors.textOnPrimary,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 32,
+    marginBottom: 12,
+  },
+  heroSubtitle: {
+    color: 'rgba(255, 255, 255, 0.82)',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    marginTop: 24,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  statCardSpacing: {
+    marginRight: 0,
+  },
+  statValue: {
+    color: colors.textOnPrimary,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  statLabel: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  featureList: {
+    marginTop: 28,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    padding: 16,
+  },
+  featureItemSpacing: {
+    marginBottom: 16,
+  },
+  featureIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    marginRight: 12,
+  },
+  featureCopy: {
+    flex: 1,
+  },
+  featureTitle: {
+    color: colors.textOnPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  featureDescription: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  heroButtons: {
+    marginTop: 28,
+  },
+  previewCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    padding: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  previewCardWide: {
+    flex: 1,
+    marginLeft: 28,
+    borderRadius: 32,
+    padding: 28,
+  },
+  previewHeader: {
+    marginBottom: 20,
+  },
+  previewTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  previewSubtitle: {
+    color: colors.text,
+    opacity: 0.75,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 6,
+  },
+  previewCanvasWrapper: {
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.24)',
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    overflow: 'hidden',
+  },
+  previewCanvas: {
+    width: '100%',
+    minHeight: 420,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  previewHint: {
+    color: colors.text,
+    opacity: 0.75,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 20,
+    textAlign: 'center',
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    marginTop: 28,
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+  },
+  quickAction: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 24,
-    width: '100%',
-    maxWidth: 380,
-    marginTop: 32,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    paddingVertical: 14,
+    marginHorizontal: 4,
+    marginVertical: 4,
+    minWidth: 120,
   },
-  buttonColumn: {
-    flexDirection: 'column',
+  quickActionPrimary: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primaryDark,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  quickActionPressed: {
+    transform: [{ scale: 0.97 }],
+  },
+  quickActionIcon: {
+    marginRight: 8,
+  },
+  quickActionLabel: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  quickActionLabelPrimary: {
+    color: colors.textOnPrimary,
+  },
+  previewCtaFallback: {
+    marginTop: 28,
     alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    maxWidth: 380,
-    gap: 20,
-    marginTop: 32,
-    paddingHorizontal: 16,
   },
-  actionButton: {
-    width: '100%',
-    maxWidth: 320,
+  bottomSpacer: {
+    height: 120,
   },
 });

@@ -17,6 +17,8 @@ const ImageViewer = forwardRef<View, Props>(({ imgSource, selectedImage }, ref) 
     );
 });
 
+ImageViewer.displayName = 'ImageViewer';
+
 export default ImageViewer;
 
 const styles = StyleSheet.create({
