@@ -14,6 +14,7 @@ import { BlurView } from 'expo-blur';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import ModernButton from '@/components/ModernButton';
 import { colors } from '../../theme';
+import { useBuscaCep } from '@/hooks/useBuscaCep';
 
 type OrderStep = 'start' | 'service' | 'menu' | 'review' | 'success';
 type ServiceMode = 'delivery' | 'retirada';
@@ -186,6 +187,10 @@ const formatCurrency = (value: number) =>
 export default function OrdersTab() {
     const { width } = useWindowDimensions();
     const isWideLayout = width >= 980;
+    
+    // Hook de busca de CEP
+    const { cep, setCep, endereco, buscarCEP } = useBuscaCep();
+    const [isLoadingCep, setIsLoadingCep] = useState(false);
 
     const [currentStep, setCurrentStep] = useState<OrderStep>('start');
     const [serviceMode, setServiceMode] = useState<ServiceMode>('delivery');
@@ -320,6 +325,33 @@ export default function OrdersTab() {
         setCustomItemPrice('');
         setCustomItemNotes('');
     };
+
+    const handleBuscarCEP = async () => {
+        if (cep.length !== 8) {
+            Alert.alert('CEP inválido', 'Por favor, digite um CEP com 8 dígitos.');
+            return;
+        }
+
+        setIsLoadingCep(true);
+        try {
+            await buscarCEP();
+        } catch (error) {
+            Alert.alert('Erro', 'Não foi possível buscar o CEP. Tente novamente.');
+        } finally {
+            setIsLoadingCep(false);
+        }
+    };
+
+    const formattedCep = useMemo(() => {
+        if (!cep) return '';
+        const numeric = cep.replace(/\D/g, '').slice(0, 8);
+        if (numeric.length > 5) {
+            return `${numeric.slice(0, 5)}-${numeric.slice(5)}`;
+        }
+        return numeric;
+    }, [cep]);
+
+    const hasAddress = useMemo(() => Boolean(endereco?.logradouro), [endereco?.logradouro]);
 
     const resetCart = () => {
         setCartItems([]);
@@ -498,6 +530,72 @@ export default function OrdersTab() {
                     );
                 })}
             </View>
+
+            {/* Buscador de CEP - aparece apenas quando Delivery está selecionado */}
+            {serviceMode === 'delivery' && (
+                <View style={styles.cepSection}>
+                    <View style={styles.cepHeader}>
+                        <Ionicons name="location" size={20} color={colors.textOnPrimary} />
+                        <Text style={styles.cepTitle}>Confirmar endereço de entrega</Text>
+                    </View>
+                    <Text style={styles.cepSubtitle}>
+                        Digite seu CEP para verificar se atendemos sua região
+                    </Text>
+
+                    <View style={styles.cepInputContainer}>
+                        <TextInput
+                            style={styles.cepInput}
+                            placeholder="00000-000"
+                            placeholderTextColor="rgba(255,255,255,0.4)"
+                            value={formattedCep}
+                            onChangeText={(text) => setCep(text.replace(/\D/g, ''))}
+                            keyboardType="numeric"
+                            maxLength={9}
+                        />
+                        <View style={styles.cepButtonWrapper}>
+                            <ModernButton
+                                title={isLoadingCep ? "Buscando..." : "Buscar"}
+                                icon="search"
+                                onPress={handleBuscarCEP}
+                                disabled={isLoadingCep || cep.length !== 8}
+                            />
+                        </View>
+                    </View>
+
+                    {/* Exibir dados do endereço */}
+                    {hasAddress && (
+                        <View style={styles.addressResult}>
+                            <View style={styles.addressResultHeader}>
+                                <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+                                <Text style={styles.addressResultTitle}>Endereço encontrado!</Text>
+                            </View>
+                            <View style={styles.addressDetails}>
+                                <View style={styles.addressRow}>
+                                    <Ionicons name="home-outline" size={16} color="rgba(255,255,255,0.7)" />
+                                    <Text style={styles.addressLabel}>Logradouro:</Text>
+                                    <Text style={styles.addressValue}>{endereco.logradouro}</Text>
+                                </View>
+                                <View style={styles.addressRow}>
+                                    <Ionicons name="business-outline" size={16} color="rgba(255,255,255,0.7)" />
+                                    <Text style={styles.addressLabel}>Bairro:</Text>
+                                    <Text style={styles.addressValue}>{endereco.bairro}</Text>
+                                </View>
+                                <View style={styles.addressRow}>
+                                    <Ionicons name="location-outline" size={16} color="rgba(255,255,255,0.7)" />
+                                    <Text style={styles.addressLabel}>Cidade:</Text>
+                                    <Text style={styles.addressValue}>{endereco.localidade} - {endereco.uf}</Text>
+                                </View>
+                            </View>
+                            <View style={styles.deliveryConfirmation}>
+                                <Ionicons name="bicycle" size={18} color="#4CAF50" />
+                                <Text style={styles.deliveryConfirmationText}>
+                                    Ótima notícia! Realizamos entregas nesta região 🎉
+                                </Text>
+                            </View>
+                        </View>
+                    )}
+                </View>
+            )}
 
             <View style={styles.stepFooter}>
                 <ModernButton
@@ -2066,5 +2164,101 @@ const styles = StyleSheet.create({
         color: 'rgba(255,255,255,0.7)',
         fontSize: 13,
         lineHeight: 20,
+    },
+    // Estilos para o buscador de CEP
+    cepSection: {
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        borderRadius: 20,
+        padding: 20,
+        marginTop: 20,
+        gap: 12,
+    },
+    cepHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    cepTitle: {
+        color: colors.textOnPrimary,
+        fontSize: 18,
+        fontWeight: '700',
+    },
+    cepSubtitle: {
+        color: 'rgba(255,255,255,0.7)',
+        fontSize: 14,
+        lineHeight: 20,
+    },
+    cepInputContainer: {
+        gap: 12,
+        marginTop: 8,
+    },
+    cepInput: {
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        color: colors.textOnPrimary,
+        fontSize: 16,
+        fontWeight: '600',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
+        width: '100%',
+    },
+    cepButtonWrapper: {
+        width: '100%',
+    },
+    addressResult: {
+        backgroundColor: 'rgba(76, 175, 80, 0.15)',
+        borderRadius: 16,
+        padding: 16,
+        marginTop: 12,
+        gap: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(76, 175, 80, 0.3)',
+    },
+    addressResultHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    addressResultTitle: {
+        color: '#4CAF50',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+    addressDetails: {
+        gap: 10,
+    },
+    addressRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    addressLabel: {
+        color: 'rgba(255,255,255,0.7)',
+        fontSize: 13,
+        fontWeight: '600',
+        minWidth: 80,
+    },
+    addressValue: {
+        color: colors.textOnPrimary,
+        fontSize: 14,
+        fontWeight: '600',
+        flex: 1,
+    },
+    deliveryConfirmation: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: 'rgba(76, 175, 80, 0.2)',
+        borderRadius: 12,
+        padding: 12,
+        marginTop: 4,
+    },
+    deliveryConfirmationText: {
+        color: colors.textOnPrimary,
+        fontSize: 13,
+        fontWeight: '600',
+        flex: 1,
     },
 });

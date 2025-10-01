@@ -16,10 +16,10 @@ import { colors, gradients } from '../../theme';
 const TAB_CONFIG = {
   index: {
     title: 'Início',
-    icon: { focused: 'pizza', unfocused: 'pizza-outline' },
-    headerTitle: 'Seja bem-vindo',
-    headerSubtitle: 'Crie stickers e viva a experiência Danike',
-    headerIcon: 'sparkles-outline',
+    icon: { focused: 'home', unfocused: 'home-outline' },
+    headerTitle: 'Pizzaria Danike',
+    headerSubtitle: 'Bem-vindo! Conheça nossa pizzaria e crie stickers',
+    headerIcon: 'pizza-outline',
   },
   toDoList: {
     title: 'Pedidos',
@@ -35,12 +35,12 @@ const TAB_CONFIG = {
     headerSubtitle: 'Conheça a jornada da Pizzaria Danike',
     headerIcon: 'book-outline',
   },
-  BuscaCep: {
-    title: 'Entrega',
-    icon: { focused: 'locate', unfocused: 'locate-outline' },
-    headerTitle: 'Cobertura de delivery',
-    headerSubtitle: 'Verifique prazos, taxas e vantagens na sua região',
-    headerIcon: 'bicycle-outline',
+  PizzaCatcher: {
+    title: 'Jogar',
+    icon: { focused: 'game-controller', unfocused: 'game-controller-outline' },
+    headerTitle: 'Pizza Catcher',
+    headerSubtitle: 'Divirta-se enquanto sua pizza chega!',
+    headerIcon: 'pizza-outline',
   },
 } as const;
 
@@ -106,13 +106,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="BuscaCep"
+        name="PizzaCatcher"
         options={{
-          title: TAB_CONFIG.BuscaCep.title,
-          header: () => <AppHeader {...TAB_CONFIG.BuscaCep} />, 
+          title: TAB_CONFIG.PizzaCatcher.title,
+          header: () => <AppHeader {...TAB_CONFIG.PizzaCatcher} />, 
           tabBarIcon: ({ color, focused, size }) => (
             <Ionicons
-              name={focused ? TAB_CONFIG.BuscaCep.icon.focused : TAB_CONFIG.BuscaCep.icon.unfocused}
+              name={focused ? TAB_CONFIG.PizzaCatcher.icon.focused : TAB_CONFIG.PizzaCatcher.icon.unfocused}
               color={color}
               size={size}
             />
