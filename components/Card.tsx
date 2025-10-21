@@ -36,6 +36,7 @@ const styles = StyleSheet.create({
   container: {
     margin: 10,
     borderRadius: 20,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
