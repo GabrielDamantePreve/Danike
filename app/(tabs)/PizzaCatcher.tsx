@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,22 @@ import {
   Dimensions,
   Animated,
   Platform,
+  PanResponder,
+  Vibration,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, gradients } from '../../theme';
+// AsyncStorage not required here (was causing "Cannot find module" error) — removed import.
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BASKET_WIDTH = 80;
 const BASKET_HEIGHT = 60;
 const ITEM_SIZE = 40;
 const GAME_AREA_HEIGHT = SCREEN_HEIGHT * 0.65;
+const HIGH_SCORE_KEY = '@PizzaCatcher:highScore';
+const BASE_SPAWN_INTERVAL = 1000;
+const MIN_SPAWN_INTERVAL = 400;
 
 type FallingItem = {
   id: string;
@@ -50,45 +56,97 @@ export default function PizzaCatcher() {
   const [highScore, setHighScore] = useState(0);
   const [combo, setCombo] = useState(0);
   const [showCombo, setShowCombo] = useState(false);
+  const [difficulty, setDifficulty] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
   
   const gameLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const itemSpawnRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const comboTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const basketPositionRef = useRef(SCREEN_WIDTH / 2 - BASKET_WIDTH / 2);
+  const animationsRef = useRef<Map<string, Animated.CompositeAnimation>>(new Map());
+
+  // Carregar highScore salvo
+  useEffect(() => {
+    loadHighScore();
+  }, []);
+
+  const loadHighScore = async () => {
+    try {
+      // const savedScore = await AsyncStorage.getItem(HIGH_SCORE_KEY);
+      // if (savedScore !== null) {
+      //   setHighScore(parseInt(savedScore, 10));
+      // }
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Erro ao carregar highScore:', error);
+      setIsLoading(false);
+    }
+  };
+
+  const saveHighScore = async (newHighScore: number) => {
+    try {
+      // await AsyncStorage.setItem(HIGH_SCORE_KEY, newHighScore.toString());
+      setHighScore(newHighScore);
+    } catch (error) {
+      console.error('Erro ao salvar highScore:', error);
+    }
+  };
 
   // Iniciar jogo
-  const startGame = () => {
+  const startGame = useCallback(() => {
     setScore(0);
     setLives(3);
     setCombo(0);
+    setDifficulty(1);
     setFallingItems([]);
+    setBasketPosition(SCREEN_WIDTH / 2 - BASKET_WIDTH / 2);
+    basketPositionRef.current = SCREEN_WIDTH / 2 - BASKET_WIDTH / 2;
+    
+    // Limpar animações anteriores
+    animationsRef.current.forEach(anim => anim.stop());
+    animationsRef.current.clear();
+    
     setGameState('playing');
-  };
+  }, []);
 
   // Pausar jogo
-  const pauseGame = () => {
+  const pauseGame = useCallback(() => {
     setGameState('paused');
-  };
+  }, []);
 
   // Retomar jogo
-  const resumeGame = () => {
+  const resumeGame = useCallback(() => {
     setGameState('playing');
-  };
+  }, []);
 
   // Mover cesta para esquerda
-  const moveLeft = () => {
-    setBasketPosition((prev) => Math.max(0, prev - 30));
-  };
+  const moveLeft = useCallback(() => {
+    setBasketPosition((prev) => {
+      const newPos = Math.max(0, prev - 30);
+      basketPositionRef.current = newPos;
+      return newPos;
+    });
+  }, []);
 
   // Mover cesta para direita
-  const moveRight = () => {
-    setBasketPosition((prev) => Math.min(SCREEN_WIDTH - BASKET_WIDTH, prev + 30));
-  };
+  const moveRight = useCallback(() => {
+    setBasketPosition((prev) => {
+      const newPos = Math.min(SCREEN_WIDTH - BASKET_WIDTH, prev + 30);
+      basketPositionRef.current = newPos;
+      return newPos;
+    });
+  }, []);
 
   // Criar novo item caindo
-  const spawnItem = () => {
+  const spawnItem = useCallback(() => {
     const isGood = Math.random() > 0.3; // 70% chance de item bom
     const items = isGood ? GOOD_ITEMS : BAD_ITEMS;
     const item = items[Math.floor(Math.random() * items.length)];
+    
+    // Velocidade aumenta com a dificuldade
+    const baseSpeed = 2000;
+    const speedReduction = (difficulty - 1) * 150;
+    const speed = Math.max(800, baseSpeed - speedReduction + Math.random() * 500);
     
     const newItem: FallingItem = {
       id: Date.now().toString() + Math.random(),
@@ -96,26 +154,37 @@ export default function PizzaCatcher() {
       y: new Animated.Value(-ITEM_SIZE),
       emoji: item.emoji,
       isGood,
-      speed: 2000 + Math.random() * 1000, // velocidade variável
+      speed,
     };
 
     setFallingItems((prev) => [...prev, newItem]);
 
-    // Animar queda
-    Animated.timing(newItem.y, {
+    // Animar queda e guardar referência
+    const animation = Animated.timing(newItem.y, {
       toValue: GAME_AREA_HEIGHT,
-      duration: newItem.speed,
+      duration: speed,
       useNativeDriver: true,
-    }).start();
-  };
+    });
+    
+    animationsRef.current.set(newItem.id, animation);
+    animation.start(({ finished }) => {
+      if (finished) {
+        animationsRef.current.delete(newItem.id);
+      }
+    });
+  }, [difficulty]);
 
-  // Verificar colisões
-  const checkCollisions = () => {
+  // Verificar colisões (otimizado com useCallback e ref)
+  const checkCollisions = useCallback(() => {
     setFallingItems((items) => {
       const remainingItems: FallingItem[] = [];
       let scoreChange = 0;
       let livesChange = 0;
       let comboChange = 0;
+      let itemsCaught = false;
+      let itemsMissed = false;
+
+      const currentBasketPos = basketPositionRef.current;
 
       items.forEach((item) => {
         // @ts-ignore - Accessing private property for collision detection
@@ -125,16 +194,27 @@ export default function PizzaCatcher() {
         if (itemY >= GAME_AREA_HEIGHT - BASKET_HEIGHT - ITEM_SIZE && 
             itemY <= GAME_AREA_HEIGHT - BASKET_HEIGHT + 20) {
           
-          // Verifica colisão horizontal
-          if (item.x >= basketPosition - ITEM_SIZE / 2 && 
-              item.x <= basketPosition + BASKET_WIDTH - ITEM_SIZE / 2) {
+          // Verifica colisão horizontal (otimizada)
+          const itemCenterX = item.x + ITEM_SIZE / 2;
+          const basketLeft = currentBasketPos;
+          const basketRight = currentBasketPos + BASKET_WIDTH;
+          
+          if (itemCenterX >= basketLeft && itemCenterX <= basketRight) {
+            // Parar animação
+            const animation = animationsRef.current.get(item.id);
+            if (animation) {
+              animation.stop();
+              animationsRef.current.delete(item.id);
+            }
             
             if (item.isGood) {
               scoreChange += 10;
               comboChange++;
+              itemsCaught = true;
             } else {
               livesChange--;
               comboChange = -999; // Reseta combo
+              Vibration.vibrate(100); // Feedback tátil
             }
             return; // Item coletado, não adiciona aos remainingItems
           }
@@ -142,8 +222,13 @@ export default function PizzaCatcher() {
 
         // Verifica se item passou do limite inferior
         if (itemY >= GAME_AREA_HEIGHT) {
+          // Limpar animação
+          animationsRef.current.delete(item.id);
+          
           if (item.isGood) {
             livesChange--; // Perde vida se deixar item bom cair
+            itemsMissed = true;
+            Vibration.vibrate(50);
           }
           return; // Item caiu, não adiciona aos remainingItems
         }
@@ -155,9 +240,23 @@ export default function PizzaCatcher() {
       if (scoreChange > 0) {
         setScore((prev) => {
           const newScore = prev + scoreChange;
-          setHighScore((hs) => Math.max(hs, newScore));
+          if (newScore > highScore) {
+            saveHighScore(newScore);
+          }
+          
+          // Aumenta dificuldade a cada 100 pontos
+          const newDifficulty = Math.floor(newScore / 100) + 1;
+          if (newDifficulty !== difficulty) {
+            setDifficulty(newDifficulty);
+          }
+          
           return newScore;
         });
+        
+        // Vibração de sucesso
+        if (itemsCaught) {
+          Vibration.vibrate(20);
+        }
       }
 
       // Atualiza combo
@@ -170,6 +269,7 @@ export default function PizzaCatcher() {
           if (newCombo >= 3) {
             setShowCombo(true);
             setScore((s) => s + newCombo * 5); // Bônus de combo
+            Vibration.vibrate([0, 30, 50, 30]); // Padrão especial para combo
           }
           return newCombo;
         });
@@ -198,20 +298,26 @@ export default function PizzaCatcher() {
 
       return remainingItems;
     });
-  };
+  }, [difficulty, highScore, saveHighScore]);
 
-  // Game Loop
+  // Game Loop (OTIMIZADO - sem basketPosition nas dependências)
   useEffect(() => {
     if (gameState === 'playing') {
+      // Intervalo de spawn diminui com a dificuldade
+      const spawnInterval = Math.max(
+        MIN_SPAWN_INTERVAL,
+        BASE_SPAWN_INTERVAL - (difficulty - 1) * 80
+      );
+
       // Spawnar novos itens
       itemSpawnRef.current = setInterval(() => {
         spawnItem();
-      }, 1000);
+      }, spawnInterval);
 
-      // Loop de verificação de colisões
+      // Loop de verificação de colisões (60 FPS)
       gameLoopRef.current = setInterval(() => {
         checkCollisions();
-      }, 50);
+      }, 16);
 
       return () => {
         if (itemSpawnRef.current) clearInterval(itemSpawnRef.current);
@@ -221,7 +327,37 @@ export default function PizzaCatcher() {
       if (itemSpawnRef.current) clearInterval(itemSpawnRef.current);
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
     }
-  }, [gameState, basketPosition]);
+  }, [gameState, difficulty, spawnItem, checkCollisions]);
+
+  // PanResponder para arrastar a cesta (controle por toque)
+  const panResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => {
+      // Início do toque
+    },
+    onPanResponderMove: (_, gestureState) => {
+      if (gameState === 'playing') {
+        const newPos = Math.max(
+          0,
+          Math.min(
+            SCREEN_WIDTH - BASKET_WIDTH,
+            basketPositionRef.current + gestureState.dx
+          )
+        );
+        setBasketPosition(newPos);
+      }
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      // Atualiza a posição final
+      basketPositionRef.current = basketPosition;
+    },
+  }), [gameState, basketPosition]);
+
+  // Atualizar ref quando basketPosition muda
+  useEffect(() => {
+    basketPositionRef.current = basketPosition;
+  }, [basketPosition]);
 
   // Renderizar tela de menu
   if (gameState === 'menu') {
@@ -239,6 +375,8 @@ export default function PizzaCatcher() {
             <Text style={styles.instructionText}>🔥 Evite obstáculos (-1 vida)</Text>
             <Text style={styles.instructionText}>💫 Faça combos para bônus!</Text>
             <Text style={styles.instructionText}>❤️ Não deixe ingredientes bons caírem</Text>
+            <Text style={styles.instructionText}>👆 Arraste o balde ou use os botões!</Text>
+            <Text style={styles.instructionText}>📈 Dificuldade aumenta a cada 100 pts</Text>
           </View>
 
           {highScore > 0 && (
@@ -332,6 +470,11 @@ export default function PizzaCatcher() {
         <View style={styles.scoreContainer}>
           <Ionicons name="star" size={20} color={colors.accent} />
           <Text style={styles.scoreText}>{score}</Text>
+          {difficulty > 1 && (
+            <View style={styles.difficultyBadge}>
+              <Text style={styles.difficultyText}>Nv.{difficulty}</Text>
+            </View>
+          )}
         </View>
 
         {showCombo && combo >= 3 && (
@@ -378,14 +521,15 @@ export default function PizzaCatcher() {
           </Animated.View>
         ))}
 
-        {/* Cesta do jogador */}
+        {/* Cesta do jogador - COM CONTROLE POR TOQUE */}
         <View
+          {...panResponder.panHandlers}
           style={[
             styles.basket,
             { left: basketPosition },
           ]}
         >
-          <Text style={styles.basketEmoji}>🧺</Text>
+          <Text style={styles.basketEmoji}>🗑️</Text>
         </View>
       </View>
 
@@ -563,6 +707,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.textOnPrimary,
   },
+  difficultyBadge: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 6,
+  },
+  difficultyText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.textOnPrimary,
+  },
   comboContainer: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 50 : 16,
@@ -625,9 +781,16 @@ const styles = StyleSheet.create({
     height: BASKET_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   basketEmoji: {
     fontSize: 60,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   controls: {
     flexDirection: 'row',
