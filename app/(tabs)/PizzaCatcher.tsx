@@ -83,14 +83,14 @@ export default function PizzaCatcher() {
     }
   };
 
-  const saveHighScore = async (newHighScore: number) => {
+  const saveHighScore = useCallback(async (newHighScore: number) => {
     try {
       // await AsyncStorage.setItem(HIGH_SCORE_KEY, newHighScore.toString());
       setHighScore(newHighScore);
     } catch (error) {
       console.error('Erro ao salvar highScore:', error);
     }
-  };
+  }, []);
 
   // Iniciar jogo
   const startGame = useCallback(() => {
@@ -300,6 +300,16 @@ export default function PizzaCatcher() {
     });
   }, [difficulty, highScore, saveHighScore]);
 
+  // Refs para as funções (evita dependências problemáticas no useEffect)
+  const spawnItemRef = useRef(spawnItem);
+  const checkCollisionsRef = useRef(checkCollisions);
+  
+  // Atualizar refs quando as funções mudarem
+  useEffect(() => {
+    spawnItemRef.current = spawnItem;
+    checkCollisionsRef.current = checkCollisions;
+  }, [spawnItem, checkCollisions]);
+
   // Game Loop (OTIMIZADO - sem basketPosition nas dependências)
   useEffect(() => {
     if (gameState === 'playing') {
@@ -309,14 +319,14 @@ export default function PizzaCatcher() {
         BASE_SPAWN_INTERVAL - (difficulty - 1) * 80
       );
 
-      // Spawnar novos itens
+      // Spawnar novos itens usando a ref
       itemSpawnRef.current = setInterval(() => {
-        spawnItem();
+        spawnItemRef.current();
       }, spawnInterval);
 
-      // Loop de verificação de colisões (60 FPS)
+      // Loop de verificação de colisões (60 FPS) usando a ref
       gameLoopRef.current = setInterval(() => {
-        checkCollisions();
+        checkCollisionsRef.current();
       }, 16);
 
       return () => {
@@ -327,7 +337,7 @@ export default function PizzaCatcher() {
       if (itemSpawnRef.current) clearInterval(itemSpawnRef.current);
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
     }
-  }, [gameState, difficulty, spawnItem, checkCollisions]);
+  }, [gameState, difficulty]);
 
   // PanResponder para arrastar a cesta (controle por toque)
   const panResponder = useMemo(() => PanResponder.create({
