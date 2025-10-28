@@ -12,6 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, gradients } from '../../theme';
+// AsyncStorage not required here (was causing "Cannot find module" error) — removed import.
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BASKET_WIDTH = 90;
@@ -19,6 +20,9 @@ const BASKET_HEIGHT = 70;
 const ITEM_SIZE = 40;
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 90 : 60; // Altura da tab bar
 const GAME_AREA_HEIGHT = SCREEN_HEIGHT * 0.65;
+const HIGH_SCORE_KEY = '@PizzaCatcher:highScore';
+const BASE_SPAWN_INTERVAL = 1000;
+const MIN_SPAWN_INTERVAL = 400;
 
 // Zona de colisão otimizada e mais generosa
 const COLLISION_ZONE_START = GAME_AREA_HEIGHT - BASKET_HEIGHT - ITEM_SIZE - 10;
@@ -187,6 +191,13 @@ export default function PizzaCatcher() {
     setDifficulty(1);
     setSpawnRate(INITIAL_SPAWN_RATE);
     setFallingItems([]);
+    setBasketPosition(SCREEN_WIDTH / 2 - BASKET_WIDTH / 2);
+    basketPositionRef.current = SCREEN_WIDTH / 2 - BASKET_WIDTH / 2;
+    
+    // Limpar animações anteriores
+    animationsRef.current.forEach(anim => anim.stop());
+    animationsRef.current.clear();
+    
     setGameState('playing');
     lastUpdateTimeRef.current = Date.now();
     lastDifficultyScoreRef.current = 0;
@@ -233,7 +244,7 @@ export default function PizzaCatcher() {
     // Animar queda
     Animated.timing(animatedValue, {
       toValue: GAME_AREA_HEIGHT,
-      duration: newItem.speed,
+      duration: speed,
       useNativeDriver: true,
     }).start();
   }, [difficulty]);
@@ -290,9 +301,23 @@ export default function PizzaCatcher() {
       if (scoreChange > 0) {
         setScore((prev) => {
           const newScore = prev + scoreChange;
-          setHighScore((hs) => Math.max(hs, newScore));
+          if (newScore > highScore) {
+            saveHighScore(newScore);
+          }
+          
+          // Aumenta dificuldade a cada 100 pontos
+          const newDifficulty = Math.floor(newScore / 100) + 1;
+          if (newDifficulty !== difficulty) {
+            setDifficulty(newDifficulty);
+          }
+          
           return newScore;
         });
+        
+        // Vibração de sucesso
+        if (itemsCaught) {
+          Vibration.vibrate(20);
+        }
       }
 
       // Aplicar mudanças de combo
@@ -512,6 +537,11 @@ export default function PizzaCatcher() {
         <View style={styles.scoreContainer}>
           <Ionicons name="star" size={20} color={colors.accent} />
           <Text style={styles.scoreText}>{score}</Text>
+          {difficulty > 1 && (
+            <View style={styles.difficultyBadge}>
+              <Text style={styles.difficultyText}>Nv.{difficulty}</Text>
+            </View>
+          )}
         </View>
 
         {showCombo && combo >= 3 && (
@@ -564,8 +594,9 @@ export default function PizzaCatcher() {
           </Animated.View>
         ))}
 
-        {/* Cesta do jogador */}
+        {/* Cesta do jogador - COM CONTROLE POR TOQUE */}
         <View
+          {...panResponder.panHandlers}
           style={[
             styles.basket,
             { left: basketPosition },
@@ -734,6 +765,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.textOnPrimary,
   },
+  difficultyBadge: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 6,
+  },
+  difficultyText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.textOnPrimary,
+  },
   comboContainer: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 50 : 16,
@@ -811,9 +854,16 @@ const styles = StyleSheet.create({
     height: BASKET_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   basketEmoji: {
     fontSize: 60,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   feedbackEmoji: {
     position: 'absolute',
