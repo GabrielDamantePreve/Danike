@@ -71,6 +71,7 @@ export default function PizzaCatcher() {
   const [difficulty, setDifficulty] = useState(1);
   const [spawnRate, setSpawnRate] = useState(INITIAL_SPAWN_RATE);
   const [feedbackEmoji, setFeedbackEmoji] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   
   // Refs para evitar closures stale
   const basketPositionRef = useRef(basketPosition);
@@ -83,6 +84,12 @@ export default function PizzaCatcher() {
   const comboTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastUpdateTimeRef = useRef<number>(Date.now());
   const lastDifficultyScoreRef = useRef(0);
+  
+  // Refs para otimização do drag
+  const isDraggingRef = useRef(false);
+  const lastTouchXRef = useRef(0);
+  const velocityRef = useRef(0);
+  const animationFrameRef = useRef<number | null>(null);
 
   // Sincronizar refs com estados
   useEffect(() => {
@@ -116,41 +123,108 @@ export default function PizzaCatcher() {
     }
   }, [score, gameState]);
 
+  // Função otimizada para atualizar posição da cesta com throttling via RAF
+  const updateBasketPosition = useCallback((newX: number) => {
+    const clampedPosition = Math.max(0, Math.min(SCREEN_WIDTH - BASKET_WIDTH, newX));
+    
+    // Cancelar animação anterior se existir
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    
+    // Usar RAF para suavizar atualizações
+    animationFrameRef.current = requestAnimationFrame(() => {
+      setBasketPosition(clampedPosition);
+      basketPositionRef.current = clampedPosition;
+    });
+  }, []);
+
+  // Aplicar inércia quando soltar o toque
+  const applyInertia = useCallback(() => {
+    if (!isDraggingRef.current && Math.abs(velocityRef.current) > 0.5) {
+      const currentPos = basketPositionRef.current;
+      const newPos = currentPos + velocityRef.current;
+      const clampedPos = Math.max(0, Math.min(SCREEN_WIDTH - BASKET_WIDTH, newPos));
+      
+      setBasketPosition(clampedPos);
+      basketPositionRef.current = clampedPos;
+      
+      // Reduzir velocidade (atrito)
+      velocityRef.current *= 0.92;
+      
+      // Continuar aplicando inércia
+      requestAnimationFrame(applyInertia);
+    } else {
+      velocityRef.current = 0;
+    }
+  }, []);
+
   // Ref para armazenar posição inicial do arrasto
   const panResponderStartPos = useRef(0);
   
-  // PanResponder para arrasto da cesta - recriado quando gameState muda
+  // PanResponder otimizado para performance máxima
   const panResponder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
-        onStartShouldSetPanResponderCapture: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponderCapture: () => true,
+        onStartShouldSetPanResponderCapture: () => false, // Permitir propagação
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          // Só ativar se movimento horizontal for significativo
+          return Math.abs(gestureState.dx) > 2;
+        },
+        onMoveShouldSetPanResponderCapture: () => false,
+        
         onPanResponderGrant: (evt) => {
           if (gameState !== 'playing') return;
           
-          // Opção 1: Seguir o toque diretamente (mais intuitivo)
+          isDraggingRef.current = true;
+          setIsDragging(true);
+          velocityRef.current = 0;
+          
+          // Posição do toque na tela
           const touchX = evt.nativeEvent.locationX;
+          lastTouchXRef.current = touchX;
+          
+          // Mover cesta instantaneamente para o toque (centralizada)
           const newPosition = touchX - BASKET_WIDTH / 2;
-          const clampedPosition = Math.max(0, Math.min(SCREEN_WIDTH - BASKET_WIDTH, newPosition));
-          setBasketPosition(clampedPosition);
-          panResponderStartPos.current = clampedPosition;
+          updateBasketPosition(newPosition);
         },
+        
         onPanResponderMove: (evt, gestureState) => {
           if (gameState !== 'playing') return;
           
-          // Durante o arrasto, usar a posição do toque diretamente
+          // Posição do toque
           const touchX = evt.nativeEvent.locationX;
+          
+          // Calcular velocidade para inércia
+          const deltaX = touchX - lastTouchXRef.current;
+          velocityRef.current = deltaX * 0.8; // Suavizar velocidade
+          lastTouchXRef.current = touchX;
+          
+          // Atualizar posição (cesta centralizada no toque)
           const newPosition = touchX - BASKET_WIDTH / 2;
-          const clampedPosition = Math.max(0, Math.min(SCREEN_WIDTH - BASKET_WIDTH, newPosition));
-          setBasketPosition(clampedPosition);
+          updateBasketPosition(newPosition);
         },
+        
         onPanResponderRelease: () => {
-          // Posição já foi atualizada durante o movimento
+          if (gameState !== 'playing') return;
+          
+          isDraggingRef.current = false;
+          setIsDragging(false);
+          
+          // Aplicar efeito de inércia suave
+          if (Math.abs(velocityRef.current) > 2) {
+            applyInertia();
+          }
+        },
+        
+        onPanResponderTerminate: () => {
+          isDraggingRef.current = false;
+          setIsDragging(false);
+          velocityRef.current = 0;
         },
       }),
-    [gameState]
+    [gameState, updateBasketPosition, applyInertia]
   );
 
   // Função para verificar colisão otimizada
@@ -420,6 +494,9 @@ export default function PizzaCatcher() {
       if (gameLoopRef.current) {
         cancelAnimationFrame(gameLoopRef.current);
       }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
   }, []);
 
@@ -596,6 +673,7 @@ export default function PizzaCatcher() {
           style={[
             styles.basket,
             { left: basketPosition },
+            isDragging && styles.basketDragging,
           ]}
         >
           <Text style={styles.basketEmoji}>🧺</Text>
@@ -842,6 +920,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  basketDragging: {
+    transform: [{ scale: 1.08 }],
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.7)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   basketEmoji: {
     fontSize: 60,
