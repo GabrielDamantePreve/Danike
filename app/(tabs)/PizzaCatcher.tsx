@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,24 +7,38 @@ import {
   Dimensions,
   Animated,
   Platform,
+  PanResponder,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, gradients } from '../../theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const BASKET_WIDTH = 80;
-const BASKET_HEIGHT = 60;
+const BASKET_WIDTH = 90;
+const BASKET_HEIGHT = 70;
 const ITEM_SIZE = 40;
+const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 90 : 60; // Altura da tab bar
 const GAME_AREA_HEIGHT = SCREEN_HEIGHT * 0.65;
+
+// Zona de colisão otimizada e mais generosa
+const COLLISION_ZONE_START = GAME_AREA_HEIGHT - BASKET_HEIGHT - ITEM_SIZE - 10;
+const COLLISION_ZONE_END = GAME_AREA_HEIGHT - BASKET_HEIGHT + 30;
+const COLLISION_TOLERANCE = ITEM_SIZE * 0.8; // Aumentado para facilitar
+
+// Dificuldade progressiva
+const INITIAL_SPAWN_RATE = 1200; // ms entre spawns
+const MIN_SPAWN_RATE = 600;
+const SPAWN_RATE_DECREASE = 50; // Diminui a cada 10 pontos
 
 type FallingItem = {
   id: string;
   x: number;
   y: Animated.Value;
+  currentY: number; // Posição Y atual calculada
   emoji: string;
   isGood: boolean;
   speed: number;
+  startTime: number; // Timestamp de quando começou a cair
 };
 
 const GOOD_ITEMS = [
@@ -50,108 +64,229 @@ export default function PizzaCatcher() {
   const [highScore, setHighScore] = useState(0);
   const [combo, setCombo] = useState(0);
   const [showCombo, setShowCombo] = useState(false);
+  const [difficulty, setDifficulty] = useState(1);
+  const [spawnRate, setSpawnRate] = useState(INITIAL_SPAWN_RATE);
+  const [feedbackEmoji, setFeedbackEmoji] = useState<string | null>(null);
   
-  const gameLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Refs para evitar closures stale
+  const basketPositionRef = useRef(basketPosition);
+  const comboRef = useRef(combo);
+  const scoreRef = useRef(score);
+  const livesRef = useRef(lives);
+  
+  const gameLoopRef = useRef<number | null>(null);
   const itemSpawnRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const comboTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastUpdateTimeRef = useRef<number>(Date.now());
+  const lastDifficultyScoreRef = useRef(0);
+
+  // Sincronizar refs com estados
+  useEffect(() => {
+    basketPositionRef.current = basketPosition;
+  }, [basketPosition]);
+
+  useEffect(() => {
+    comboRef.current = combo;
+  }, [combo]);
+
+  useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
+
+  useEffect(() => {
+    livesRef.current = lives;
+  }, [lives]);
+
+  // Aumentar dificuldade progressivamente
+  useEffect(() => {
+    if (gameState === 'playing' && score > 0 && score % 20 === 0 && score !== lastDifficultyScoreRef.current) {
+      lastDifficultyScoreRef.current = score;
+      setDifficulty(prev => prev + 1);
+      
+      // Diminuir tempo entre spawns
+      setSpawnRate(prev => Math.max(MIN_SPAWN_RATE, prev - SPAWN_RATE_DECREASE));
+      
+      // Feedback visual de dificuldade aumentada
+      setShowCombo(true);
+      setTimeout(() => setShowCombo(false), 2000);
+    }
+  }, [score, gameState]);
+
+  // PanResponder para arrasto da cesta
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => gameState === 'playing',
+      onMoveShouldSetPanResponder: () => gameState === 'playing',
+      onPanResponderGrant: () => {
+        // Pode adicionar feedback visual aqui
+      },
+      onPanResponderMove: (_, gestureState) => {
+        // Calcular nova posição baseada no movimento do dedo
+        const newPosition = basketPositionRef.current + gestureState.dx;
+        const clampedPosition = Math.max(0, Math.min(SCREEN_WIDTH - BASKET_WIDTH, newPosition));
+        setBasketPosition(clampedPosition);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        // Atualizar posição final
+        const newPosition = basketPositionRef.current + gestureState.dx;
+        const clampedPosition = Math.max(0, Math.min(SCREEN_WIDTH - BASKET_WIDTH, newPosition));
+        setBasketPosition(clampedPosition);
+      },
+    })
+  ).current;
+
+  // Função para verificar colisão otimizada
+  const checkItemCollision = useCallback((item: FallingItem, currentBasketPos: number): 'caught' | 'missed' | 'falling' => {
+    const itemY = item.currentY;
+
+    // Item ainda está caindo acima da zona de colisão
+    if (itemY < COLLISION_ZONE_START) {
+      return 'falling';
+    }
+
+    // Item passou da zona de colisão
+    if (itemY > GAME_AREA_HEIGHT) {
+      return 'missed';
+    }
+
+    // Item está na zona de colisão - verificar colisão horizontal
+    if (itemY >= COLLISION_ZONE_START && itemY <= COLLISION_ZONE_END) {
+      const itemCenterX = item.x + ITEM_SIZE / 2;
+      const basketLeft = currentBasketPos;
+      const basketRight = currentBasketPos + BASKET_WIDTH;
+
+      // Colisão detectada!
+      if (itemCenterX >= basketLeft - COLLISION_TOLERANCE && 
+          itemCenterX <= basketRight + COLLISION_TOLERANCE) {
+        return 'caught';
+      }
+    }
+
+    return 'falling';
+  }, []);
+
+  // Atualizar posição dos itens baseado no tempo decorrido
+  const updateItemPositions = useCallback((items: FallingItem[], currentTime: number) => {
+    return items.map(item => {
+      const elapsed = currentTime - item.startTime;
+      const progress = elapsed / item.speed;
+      const newY = -ITEM_SIZE + (progress * (GAME_AREA_HEIGHT + ITEM_SIZE));
+      
+      return {
+        ...item,
+        currentY: newY
+      };
+    });
+  }, []);
 
   // Iniciar jogo
-  const startGame = () => {
+  const startGame = useCallback(() => {
     setScore(0);
     setLives(3);
     setCombo(0);
+    setDifficulty(1);
+    setSpawnRate(INITIAL_SPAWN_RATE);
     setFallingItems([]);
     setGameState('playing');
-  };
+    lastUpdateTimeRef.current = Date.now();
+    lastDifficultyScoreRef.current = 0;
+  }, []);
 
   // Pausar jogo
-  const pauseGame = () => {
+  const pauseGame = useCallback(() => {
     setGameState('paused');
-  };
+  }, []);
 
   // Retomar jogo
-  const resumeGame = () => {
+  const resumeGame = useCallback(() => {
     setGameState('playing');
-  };
+    lastUpdateTimeRef.current = Date.now();
+  }, []);
 
-  // Mover cesta para esquerda
-  const moveLeft = () => {
-    setBasketPosition((prev) => Math.max(0, prev - 30));
-  };
-
-  // Mover cesta para direita
-  const moveRight = () => {
-    setBasketPosition((prev) => Math.min(SCREEN_WIDTH - BASKET_WIDTH, prev + 30));
-  };
-
-  // Criar novo item caindo
-  const spawnItem = () => {
-    const isGood = Math.random() > 0.3; // 70% chance de item bom
+  // Criar novo item caindo com velocidade baseada na dificuldade
+  const spawnItem = useCallback(() => {
+    const isGood = Math.random() > 0.25; // 75% chance de item bom
     const items = isGood ? GOOD_ITEMS : BAD_ITEMS;
     const item = items[Math.floor(Math.random() * items.length)];
     
+    const currentTime = Date.now();
+    const animatedValue = new Animated.Value(-ITEM_SIZE);
+    
+    // Velocidade aumenta com a dificuldade
+    const baseSpeed = 2200;
+    const speedReduction = (difficulty - 1) * 150;
+    const speed = Math.max(1200, baseSpeed - speedReduction + Math.random() * 400);
+    
     const newItem: FallingItem = {
-      id: Date.now().toString() + Math.random(),
+      id: currentTime.toString() + Math.random(),
       x: Math.random() * (SCREEN_WIDTH - ITEM_SIZE),
-      y: new Animated.Value(-ITEM_SIZE),
+      y: animatedValue,
+      currentY: -ITEM_SIZE,
       emoji: item.emoji,
       isGood,
-      speed: 2000 + Math.random() * 1000, // velocidade variável
+      speed,
+      startTime: currentTime,
     };
 
     setFallingItems((prev) => [...prev, newItem]);
 
     // Animar queda
-    Animated.timing(newItem.y, {
+    Animated.timing(animatedValue, {
       toValue: GAME_AREA_HEIGHT,
       duration: newItem.speed,
       useNativeDriver: true,
     }).start();
-  };
+  }, [difficulty]);
 
-  // Verificar colisões
-  const checkCollisions = () => {
+  // Sistema de colisão otimizado - processa todas as colisões de uma vez
+  const processCollisions = useCallback(() => {
+    const currentTime = Date.now();
+    const currentBasketPos = basketPositionRef.current;
+
     setFallingItems((items) => {
+      // Atualizar posições de todos os itens
+      const updatedItems = updateItemPositions(items, currentTime);
+      
       const remainingItems: FallingItem[] = [];
       let scoreChange = 0;
       let livesChange = 0;
-      let comboChange = 0;
+      let comboIncrease = 0;
+      let comboReset = false;
 
-      items.forEach((item) => {
-        // @ts-ignore - Accessing private property for collision detection
-        const itemY = item.y.__getValue();
+      updatedItems.forEach((item) => {
+        const collisionStatus = checkItemCollision(item, currentBasketPos);
 
-        // Verifica se item está na altura da cesta
-        if (itemY >= GAME_AREA_HEIGHT - BASKET_HEIGHT - ITEM_SIZE && 
-            itemY <= GAME_AREA_HEIGHT - BASKET_HEIGHT + 20) {
-          
-          // Verifica colisão horizontal
-          if (item.x >= basketPosition - ITEM_SIZE / 2 && 
-              item.x <= basketPosition + BASKET_WIDTH - ITEM_SIZE / 2) {
-            
-            if (item.isGood) {
-              scoreChange += 10;
-              comboChange++;
-            } else {
-              livesChange--;
-              comboChange = -999; // Reseta combo
-            }
-            return; // Item coletado, não adiciona aos remainingItems
+        if (collisionStatus === 'caught') {
+          // Item foi pego!
+          if (item.isGood) {
+            scoreChange += 10;
+            comboIncrease++;
+            // Feedback positivo
+            setFeedbackEmoji('✨');
+            setTimeout(() => setFeedbackEmoji(null), 500);
+          } else {
+            livesChange--;
+            comboReset = true;
+            // Feedback negativo
+            setFeedbackEmoji('💥');
+            setTimeout(() => setFeedbackEmoji(null), 500);
           }
-        }
-
-        // Verifica se item passou do limite inferior
-        if (itemY >= GAME_AREA_HEIGHT) {
+          // Item não é adicionado aos remainingItems (foi coletado)
+        } else if (collisionStatus === 'missed') {
+          // Item passou do limite inferior
           if (item.isGood) {
             livesChange--; // Perde vida se deixar item bom cair
+            setFeedbackEmoji('😢');
+            setTimeout(() => setFeedbackEmoji(null), 500);
           }
-          return; // Item caiu, não adiciona aos remainingItems
+          // Item não é adicionado aos remainingItems (caiu)
+        } else {
+          // Item ainda está caindo
+          remainingItems.push(item);
         }
-
-        remainingItems.push(item);
       });
 
-      // Atualiza score
+      // Aplicar mudanças de score
       if (scoreChange > 0) {
         setScore((prev) => {
           const newScore = prev + scoreChange;
@@ -160,16 +295,21 @@ export default function PizzaCatcher() {
         });
       }
 
-      // Atualiza combo
-      if (comboChange === -999) {
+      // Aplicar mudanças de combo
+      if (comboReset) {
         setCombo(0);
         setShowCombo(false);
-      } else if (comboChange > 0) {
+        if (comboTimeoutRef.current) {
+          clearTimeout(comboTimeoutRef.current);
+          comboTimeoutRef.current = null;
+        }
+      } else if (comboIncrease > 0) {
         setCombo((prev) => {
-          const newCombo = prev + comboChange;
+          const newCombo = prev + comboIncrease;
           if (newCombo >= 3) {
             setShowCombo(true);
-            setScore((s) => s + newCombo * 5); // Bônus de combo
+            // Bônus de combo
+            setScore((s) => s + newCombo * 5);
           }
           return newCombo;
         });
@@ -184,13 +324,12 @@ export default function PizzaCatcher() {
         }, 3000);
       }
 
-      // Atualiza vidas
+      // Aplicar mudanças de vidas
       if (livesChange < 0) {
         setLives((prev) => {
-          const newLives = prev + livesChange;
+          const newLives = Math.max(0, prev + livesChange);
           if (newLives <= 0) {
             setGameState('gameOver');
-            return 0;
           }
           return newLives;
         });
@@ -198,30 +337,70 @@ export default function PizzaCatcher() {
 
       return remainingItems;
     });
-  };
+  }, [checkItemCollision, updateItemPositions]);
 
-  // Game Loop
+  // Game Loop otimizado com requestAnimationFrame e spawn rate dinâmico
   useEffect(() => {
     if (gameState === 'playing') {
-      // Spawnar novos itens
+      // Spawnar novos itens com taxa dinâmica
       itemSpawnRef.current = setInterval(() => {
         spawnItem();
-      }, 1000);
+      }, spawnRate);
 
-      // Loop de verificação de colisões
-      gameLoopRef.current = setInterval(() => {
-        checkCollisions();
-      }, 50);
+      // Loop de verificação de colisões usando requestAnimationFrame
+      const gameLoop = () => {
+        const currentTime = Date.now();
+        const deltaTime = currentTime - lastUpdateTimeRef.current;
+
+        // Executar verificação de colisões a cada ~16ms (60fps)
+        if (deltaTime >= 16) {
+          processCollisions();
+          lastUpdateTimeRef.current = currentTime;
+        }
+
+        // Continuar o loop
+        gameLoopRef.current = requestAnimationFrame(gameLoop);
+      };
+
+      // Iniciar o loop
+      gameLoopRef.current = requestAnimationFrame(gameLoop);
 
       return () => {
-        if (itemSpawnRef.current) clearInterval(itemSpawnRef.current);
-        if (gameLoopRef.current) clearInterval(gameLoopRef.current);
+        if (itemSpawnRef.current) {
+          clearInterval(itemSpawnRef.current);
+          itemSpawnRef.current = null;
+        }
+        if (gameLoopRef.current) {
+          cancelAnimationFrame(gameLoopRef.current);
+          gameLoopRef.current = null;
+        }
       };
     } else {
-      if (itemSpawnRef.current) clearInterval(itemSpawnRef.current);
-      if (gameLoopRef.current) clearInterval(gameLoopRef.current);
+      if (itemSpawnRef.current) {
+        clearInterval(itemSpawnRef.current);
+        itemSpawnRef.current = null;
+      }
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
+        gameLoopRef.current = null;
+      }
     }
-  }, [gameState, basketPosition]);
+  }, [gameState, spawnItem, processCollisions, spawnRate]);
+
+  // Limpeza ao desmontar
+  useEffect(() => {
+    return () => {
+      if (comboTimeoutRef.current) {
+        clearTimeout(comboTimeoutRef.current);
+      }
+      if (itemSpawnRef.current) {
+        clearInterval(itemSpawnRef.current);
+      }
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
+      }
+    };
+  }, []);
 
   // Renderizar tela de menu
   if (gameState === 'menu') {
@@ -235,10 +414,11 @@ export default function PizzaCatcher() {
 
           <View style={styles.instructionsBox}>
             <Text style={styles.instructionsTitle}>Como Jogar:</Text>
-            <Text style={styles.instructionText}>🍕 Pegue pizzas e ingredientes (+10 pts)</Text>
+            <Text style={styles.instructionText}>👆 Arraste a cesta para mover</Text>
+            <Text style={styles.instructionText}>🍕 Pegue ingredientes bons (+10 pts)</Text>
             <Text style={styles.instructionText}>🔥 Evite obstáculos (-1 vida)</Text>
             <Text style={styles.instructionText}>💫 Faça combos para bônus!</Text>
-            <Text style={styles.instructionText}>❤️ Não deixe ingredientes bons caírem</Text>
+            <Text style={styles.instructionText}>⚡ Dificuldade aumenta com score</Text>
           </View>
 
           {highScore > 0 && (
@@ -339,6 +519,12 @@ export default function PizzaCatcher() {
             <Text style={styles.comboText}>🔥 COMBO x{combo}!</Text>
           </View>
         )}
+        
+        {difficulty > 1 && (
+          <View style={styles.difficultyBadge}>
+            <Text style={styles.difficultyText}>Nível {difficulty}</Text>
+          </View>
+        )}
 
         <View style={styles.livesContainer}>
           {Array.from({ length: 3 }).map((_, i) => (
@@ -360,8 +546,8 @@ export default function PizzaCatcher() {
         </Pressable>
       </View>
 
-      {/* Área de jogo */}
-      <View style={styles.gameArea}>
+      {/* Área de jogo com controle por arrasto */}
+      <View style={styles.gameArea} {...panResponder.panHandlers}>
         {/* Itens caindo */}
         {fallingItems.map((item) => (
           <Animated.View
@@ -386,32 +572,17 @@ export default function PizzaCatcher() {
           ]}
         >
           <Text style={styles.basketEmoji}>🧺</Text>
+          {feedbackEmoji && (
+            <Text style={styles.feedbackEmoji}>{feedbackEmoji}</Text>
+          )}
         </View>
-      </View>
-
-      {/* Controles */}
-      <View style={styles.controls}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.controlButton,
-            styles.leftButton,
-            pressed && styles.controlButtonPressed,
-          ]}
-          onPress={moveLeft}
-        >
-          <Ionicons name="chevron-back" size={32} color={colors.textOnPrimary} />
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.controlButton,
-            styles.rightButton,
-            pressed && styles.controlButtonPressed,
-          ]}
-          onPress={moveRight}
-        >
-          <Ionicons name="chevron-forward" size={32} color={colors.textOnPrimary} />
-        </Pressable>
+        
+        {/* Instrução de arrasto */}
+        {fallingItems.length < 3 && (
+          <View style={styles.dragHint}>
+            <Text style={styles.dragHintText}>👆 Arraste para mover</Text>
+          </View>
+        )}
       </View>
 
       {/* Overlay de pausa */}
@@ -580,6 +751,20 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
   },
+  difficultyBadge: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 90 : 60,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  difficultyText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: colors.textOnPrimary,
+  },
   livesContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -604,6 +789,7 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
     marginHorizontal: 10,
+    marginBottom: TAB_BAR_HEIGHT + 10, // Espaço para tab bar
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 20,
     overflow: 'hidden',
@@ -620,7 +806,7 @@ const styles = StyleSheet.create({
   },
   basket: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 30, // Aumentado para ficar mais longe da borda
     width: BASKET_WIDTH,
     height: BASKET_HEIGHT,
     justifyContent: 'center',
@@ -629,31 +815,26 @@ const styles = StyleSheet.create({
   basketEmoji: {
     fontSize: 60,
   },
-  controls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
+  feedbackEmoji: {
+    position: 'absolute',
+    top: -30,
+    fontSize: 32,
+    fontWeight: 'bold',
   },
-  controlButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+  dragHint: {
+    position: 'absolute',
+    bottom: 120, // Ajustado para ficar acima da cesta
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
-  controlButtonPressed: {
-    backgroundColor: 'rgba(255,255,255,0.4)',
-    transform: [{ scale: 0.95 }],
+  dragHintText: {
+    color: colors.textOnPrimary,
+    fontSize: 16,
+    fontWeight: '600',
   },
-  leftButton: {},
-  rightButton: {},
   pauseOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.7)',
