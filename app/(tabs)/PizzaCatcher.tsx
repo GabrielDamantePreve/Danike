@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -116,28 +116,42 @@ export default function PizzaCatcher() {
     }
   }, [score, gameState]);
 
-  // PanResponder para arrasto da cesta
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => gameState === 'playing',
-      onMoveShouldSetPanResponder: () => gameState === 'playing',
-      onPanResponderGrant: () => {
-        // Pode adicionar feedback visual aqui
-      },
-      onPanResponderMove: (_, gestureState) => {
-        // Calcular nova posição baseada no movimento do dedo
-        const newPosition = basketPositionRef.current + gestureState.dx;
-        const clampedPosition = Math.max(0, Math.min(SCREEN_WIDTH - BASKET_WIDTH, newPosition));
-        setBasketPosition(clampedPosition);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        // Atualizar posição final
-        const newPosition = basketPositionRef.current + gestureState.dx;
-        const clampedPosition = Math.max(0, Math.min(SCREEN_WIDTH - BASKET_WIDTH, newPosition));
-        setBasketPosition(clampedPosition);
-      },
-    })
-  ).current;
+  // Ref para armazenar posição inicial do arrasto
+  const panResponderStartPos = useRef(0);
+  
+  // PanResponder para arrasto da cesta - recriado quando gameState muda
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponderCapture: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponderCapture: () => true,
+        onPanResponderGrant: (evt) => {
+          if (gameState !== 'playing') return;
+          
+          // Opção 1: Seguir o toque diretamente (mais intuitivo)
+          const touchX = evt.nativeEvent.locationX;
+          const newPosition = touchX - BASKET_WIDTH / 2;
+          const clampedPosition = Math.max(0, Math.min(SCREEN_WIDTH - BASKET_WIDTH, newPosition));
+          setBasketPosition(clampedPosition);
+          panResponderStartPos.current = clampedPosition;
+        },
+        onPanResponderMove: (evt, gestureState) => {
+          if (gameState !== 'playing') return;
+          
+          // Durante o arrasto, usar a posição do toque diretamente
+          const touchX = evt.nativeEvent.locationX;
+          const newPosition = touchX - BASKET_WIDTH / 2;
+          const clampedPosition = Math.max(0, Math.min(SCREEN_WIDTH - BASKET_WIDTH, newPosition));
+          setBasketPosition(clampedPosition);
+        },
+        onPanResponderRelease: () => {
+          // Posição já foi atualizada durante o movimento
+        },
+      }),
+    [gameState]
+  );
 
   // Função para verificar colisão otimizada
   const checkItemCollision = useCallback((item: FallingItem, currentBasketPos: number): 'caught' | 'missed' | 'falling' => {
@@ -593,7 +607,7 @@ export default function PizzaCatcher() {
         {/* Instrução de arrasto */}
         {fallingItems.length < 3 && (
           <View style={styles.dragHint}>
-            <Text style={styles.dragHintText}>👆 Arraste para mover</Text>
+            <Text style={styles.dragHintText}>👆 Toque e arraste aqui</Text>
           </View>
         )}
       </View>
