@@ -194,10 +194,6 @@ export default function PizzaCatcher() {
     setBasketPosition(SCREEN_WIDTH / 2 - BASKET_WIDTH / 2);
     basketPositionRef.current = SCREEN_WIDTH / 2 - BASKET_WIDTH / 2;
     
-    // Limpar animações anteriores
-    animationsRef.current.forEach(anim => anim.stop());
-    animationsRef.current.clear();
-    
     setGameState('playing');
     lastUpdateTimeRef.current = Date.now();
     lastDifficultyScoreRef.current = 0;
@@ -301,23 +297,9 @@ export default function PizzaCatcher() {
       if (scoreChange > 0) {
         setScore((prev) => {
           const newScore = prev + scoreChange;
-          if (newScore > highScore) {
-            saveHighScore(newScore);
-          }
-          
-          // Aumenta dificuldade a cada 100 pontos
-          const newDifficulty = Math.floor(newScore / 100) + 1;
-          if (newDifficulty !== difficulty) {
-            setDifficulty(newDifficulty);
-          }
-          
+          setHighScore((hs) => Math.max(hs, newScore));
           return newScore;
         });
-        
-        // Vibração de sucesso
-        if (itemsCaught) {
-          Vibration.vibrate(20);
-        }
       }
 
       // Aplicar mudanças de combo
@@ -762,18 +744,6 @@ const styles = StyleSheet.create({
   },
   scoreText: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.textOnPrimary,
-  },
-  difficultyBadge: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    marginLeft: 6,
-  },
-  difficultyText: {
-    fontSize: 12,
     fontWeight: 'bold',
     color: colors.textOnPrimary,
   },
