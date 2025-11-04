@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { colors, gradients } from '../../theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as ImagePicker from 'expo-image-picker';
@@ -21,15 +22,48 @@ import domtoimage from 'dom-to-image';
 import { useState, useRef, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 
-import Button from '@/components/Button';
+import ModernButton from '@/components/ModernButton';
 import ImageViewer from '@/components/ImageViewer';
-import IconButton from '@/components/IconButton';
-import CircleButton from '@/components/CircleButton';
 import EmojiPicker from '@/components/EmojiPicker';
 import EmojiList from '@/components/EmojiList';
 import EmojiSticker from '@/components/EmojiSticker';
 
 const PlaceholderImage = require('@/assets/images/background-image.png');
+
+type QuickActionProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  variant?: 'default' | 'primary';
+};
+
+function QuickAction({ icon, label, onPress, variant = 'default' }: QuickActionProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.quickAction,
+        variant === 'primary' && styles.quickActionPrimary,
+        pressed && styles.quickActionPressed,
+      ]}
+    >
+      <Ionicons
+        name={icon}
+        size={20}
+        color={variant === 'primary' ? colors.textOnPrimary : colors.primary}
+        style={styles.quickActionIcon}
+      />
+      <Text
+        style={[
+          styles.quickActionLabel,
+          variant === 'primary' && styles.quickActionLabelPrimary,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
 
 export default function Index() {
   const [selectedImage, setSelectedImage] = useState<string | undefined>(undefined);
@@ -181,21 +215,48 @@ export default function Index() {
                   <CircleButton onPress={onAddSticker} />
                   <IconButton icon="save-alt" label="Salvar" onPress={onSaveImageAsync} />
                 </View>
-              ) : (
-                <View style={styles.buttonColumn}>
-                  <View style={styles.actionButton}>
-                    <Button theme="primary" label="Escolher foto" onPress={pickImageAsync} />
-                  </View>
-                  <View style={styles.actionButton}>
-                    <Button label="Usar esta foto" onPress={() => setShowAppOptions(true)} />
+              </View>
+
+              {!showAppOptions && (
+                <View style={styles.initialActions}>
+                  <ModernButton
+                    title="Escolher da galeria"
+                    icon="image-outline"
+                    size="large"
+                    onPress={pickImageAsync}
+                  />
+                  <ModernButton
+                    title="Usar foto padrão"
+                    variant="outline"
+                    icon="pizza-outline"
+                    onPress={() => setShowAppOptions(true)}
+                  />
+                </View>
+              )}
+
+              {showAppOptions && (
+                <View style={styles.editingActions}>
+                  <View style={styles.quickActionsRow}>
+                    <QuickAction icon="refresh" label="Resetar" onPress={onReset} />
+                    <QuickAction
+                      icon="add-circle"
+                      label="Adicionar emoji"
+                      onPress={onAddSticker}
+                      variant="primary"
+                    />
+                    <QuickAction
+                      icon="cloud-download"
+                      label="Salvar"
+                      onPress={onSaveImageAsync}
+                    />
                   </View>
                 </View>
               )}
-            </View>
+            </BlurView>
           </View>
+          
+          <View style={styles.bottomSpacer} />
         </ScrollView>
-
-
 
         <EmojiPicker isVisible={isModalVisible} onClose={onModalClose}>
           <EmojiList onSelect={emoji => setPickedEmoji(emoji)} onCloseModal={onModalClose} />
@@ -247,129 +308,186 @@ const styles = StyleSheet.create({
   bg: {
     flex: 1,
     width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 0,
-    paddingHorizontal: 0,
   },
-  header: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 48,
-    marginBottom: 24,
-  },
-  logo: {
-    marginBottom: 8,
-  },
-  title: {
-    color: colors.textOnPrimary,
-    fontSize: 28,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-    marginBottom: 2,
-  },
-  subtitle: {
-    color: colors.textOnPrimary,
-    opacity: 0.8,
-    fontSize: 15,
-    marginBottom: 0,
-  },
-  centerContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    maxWidth: 380,
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 16,
+    paddingVertical: 24,
+    paddingBottom: 120,
+    position: 'relative',
   },
-  introBox: {
-    width: '100%',
-    maxWidth: 380,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderRadius: 18,
-    paddingVertical: 18,
-    paddingHorizontal: 22,
-    marginBottom: 22,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  introTitle: {
-    color: colors.textOnPrimary,
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 6,
-    textAlign: 'center',
-    letterSpacing: 0.5,
-  },
-  introText: {
-    color: colors.textOnPrimary,
-    opacity: 0.92,
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-    fontWeight: '400',
-  },
-  card: {
-    width: 320,
-    height: 320,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
-    shadowRadius: 10,
-    elevation: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
-  },
-  hint: {
-    color: colors.textOnPrimary,
-    opacity: 0.85,
-    fontSize: 15,
-    textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 0,
-  },
-  bottomArea: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingBottom: 36,
-    paddingTop: 16,
-    backgroundColor: 'transparent',
+  decorativeLayer: {
     position: 'absolute',
+    top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 10,
+    zIndex: -1,
   },
-  optionsRow: {
+  decorativeBlob: {
+    position: 'absolute',
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    opacity: 0.8,
+  },
+  blobTopLeft: {
+    top: -80,
+    left: -60,
+  },
+  blobBottomRight: {
+    bottom: -100,
+    right: -90,
+  },
+  blobCenter: {
+    top: '38%',
+    right: '20%',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+  },
+  contentWrapper: {
+    width: '100%',
+    maxWidth: 900,
+    alignSelf: 'center',
+    gap: 20,
+  },
+  contentWrapperWide: {
+    maxWidth: 1120,
+    flexDirection: 'row',
+    gap: 24,
+  },
+  heroCard: {
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 32,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    alignItems: 'center',
+  },
+  heroCardWide: {
+    flex: 1,
+  },
+  heroIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  heroTitle: {
+    color: colors.textOnPrimary,
+    fontSize: 32,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  heroSubtitle: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+    maxWidth: 600,
+  },
+  stickerCard: {
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    padding: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  },
+  stickerCardWide: {
+    flex: 1,
+  },
+  stickerHeader: {
+    marginBottom: 24,
+  },
+  stickerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  stickerTitle: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  stickerSubtitle: {
+    color: colors.text,
+    opacity: 0.7,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  previewCanvasWrapper: {
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 107, 53, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    overflow: 'hidden',
+    marginBottom: 24,
+  },
+  previewCanvas: {
+    width: '100%',
+    minHeight: 420,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  initialActions: {
+    gap: 12,
+  },
+  editingActions: {
+    alignItems: 'center',
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
+    width: '100%',
+  },
+  quickAction: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 24,
-    width: '100%',
-    maxWidth: 380,
-    marginTop: 32,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 53, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    minWidth: 140,
+    maxWidth: 200,
   },
-  buttonColumn: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    maxWidth: 380,
-    gap: 20,
-    marginTop: 32,
-    paddingHorizontal: 16,
+  quickActionPrimary: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primaryDark,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 8,
   },
-  actionButton: {
-    width: '100%',
-    maxWidth: 320,
+  quickActionPressed: {
+    transform: [{ scale: 0.96 }],
+    opacity: 0.8,
+  },
+  quickActionIcon: {
+    marginRight: 8,
+  },
+  quickActionLabel: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  quickActionLabelPrimary: {
+    color: colors.textOnPrimary,
+  },
+  bottomSpacer: {
+    height: 80,
   },
 });

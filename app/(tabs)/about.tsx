@@ -1,118 +1,99 @@
-
-import { Text, View, StyleSheet, ScrollView, Dimensions } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import Card from '@/components/Card';
 import { colors } from '../../theme';
 
-const { width } = Dimensions.get('window');
+type InfoItem = {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  description: string;
+};
 
-const features = [
+const highlights: InfoItem[] = [
   {
     icon: 'flame',
-    title: 'Forno a Lenha',
-    description: 'Pizzas assadas no forno tradicional para sabor autêntico'
+    title: 'Forno a lenha',
+    description: 'Massa artesanal assada em forno de pedra.',
   },
   {
-    icon: 'leaf',
-    title: 'Ingredientes Frescos',
-    description: 'Selecionamos os melhores ingredientes diariamente'
+    icon: 'leaf-outline',
+    title: 'Ingredientes frescos',
+    description: 'Produtores locais e ingredientes selecionados.',
   },
   {
-    icon: 'time',
-    title: 'Entrega Rápida',
-    description: 'Delivery em até 30 minutos na região'
+    icon: 'sparkles-outline',
+    title: 'Experiência única',
+    description: 'Ambiente acolhedor e atendimento especial.',
   },
-  {
-    icon: 'heart',
-    title: 'Feito com Amor',
-    description: 'Cada pizza é preparada com carinho e dedicação'
-  }
 ];
 
-export default function AboutScreen() {
+const contactInfo: InfoItem[] = [
+  {
+    icon: 'location-outline',
+    title: 'Endereço',
+    description: 'Av. Itália, 375 • Centro gastronômico',
+  },
+  {
+    icon: 'time-outline',
+    title: 'Horário',
+    description: 'Ter a dom • 18h às 23h',
+  },
+  {
+    icon: 'call-outline',
+    title: 'Contato',
+    description: 'Pedidos via app • eventos@danike.com',
+  },
+];
+
+export default function AboutTab() {
   return (
-  <LinearGradient colors={[colors.primary, colors.accent, '#FFD700']} style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Ionicons name="pizza" size={60} color="white" />
+    <LinearGradient
+      colors={[colors.primaryDark, colors.primary, colors.primaryLight]}
+      style={styles.gradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Hero Section */}
+        <BlurView intensity={60} tint="dark" style={styles.heroCard}>
+          <View style={styles.heroIconWrapper}>
+            <Ionicons name="pizza" size={48} color={colors.textOnPrimary} />
           </View>
-          <Text style={styles.brandName}>Pizzaria Danike's</Text>
-          <Text style={styles.tagline}>🍕 Sabor que Conquista! 🍕</Text>
-        </View>
-
-        {/* Story Section */}
-        <View style={styles.storySection}>
-          <Text style={styles.sectionTitle}>Nossa História</Text>
-          <Text style={styles.storyText}>
-            Bem-vindo à Pizzaria do Danike's, onde cada fatia é uma experiência única de sabor e qualidade! 
-            Nossa paixão pela culinária italiana se une à criatividade brasileira para oferecer pizzas artesanais, 
-            feitas com ingredientes frescos e um toque especial de amor.
+          <Text style={styles.heroBadge}>Desde 2012</Text>
+          <Text style={styles.heroTitle}>Pizzaria Danike</Text>
+          <Text style={styles.heroSubtitle}>
+            Pizza artesanal com ingredientes frescos, assada em forno a lenha. 
+            Uma experiência única que combina tradição e sabor.
           </Text>
-        </View>
+        </BlurView>
 
-        {/* Features Grid */}
-        <View style={styles.featuresSection}>
-          <Text style={styles.sectionTitle}>Nossos Diferenciais</Text>
-          <View style={styles.featuresGrid}>
-            {features.map((feature, index) => (
-              <View key={index} style={styles.featureCard}>
-                <View style={styles.featureIconContainer}>
-                  <Ionicons name={feature.icon as any} size={30} color={colors.primary} />
-                </View>
-                <Text style={styles.featureTitle}>{feature.title}</Text>
-                <Text style={styles.featureDescription}>{feature.description}</Text>
-              </View>
-            ))}
-          </View>
+        {/* Highlights */}
+        <View style={styles.highlightRow}>
+          {highlights.map((item) => (
+            <View key={item.title} style={styles.highlightCard}>
+              <Ionicons name={item.icon} size={28} color={colors.textOnPrimary} />
+              <Text style={styles.highlightTitle}>{item.title}</Text>
+              <Text style={styles.highlightDescription}>{item.description}</Text>
+            </View>
+          ))}
         </View>
 
         {/* Contact Info */}
-        <View style={styles.contactSection}>
-          <Text style={styles.sectionTitle}>Informações</Text>
-          
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Ionicons name="location" size={24} color={colors.primary} />
-              <View style={styles.infoText}>
-                <Text style={styles.infoTitle}>Localização</Text>
-                <Text style={styles.infoDescription}>Entregamos em toda a região!</Text>
+        <BlurView intensity={65} tint="light" style={styles.contactCard}>
+          <Text style={styles.sectionTitle}>Visite-nos</Text>
+          {contactInfo.map((item) => (
+            <View key={item.title} style={styles.contactItem}>
+              <View style={styles.contactIconWrapper}>
+                <Ionicons name={item.icon} size={22} color={colors.primary} />
+              </View>
+              <View style={styles.contactCopy}>
+                <Text style={styles.contactTitle}>{item.title}</Text>
+                <Text style={styles.contactDescription}>{item.description}</Text>
               </View>
             </View>
-          </View>
-
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Ionicons name="time" size={24} color={colors.primary} />
-              <View style={styles.infoText}>
-                <Text style={styles.infoTitle}>Horário de Funcionamento</Text>
-                <Text style={styles.infoDescription}>Todos os dias: 18h às 23h</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Ionicons name="call" size={24} color={colors.primary} />
-              <View style={styles.infoText}>
-                <Text style={styles.infoTitle}>Contato</Text>
-                <Text style={styles.infoDescription}>Faça seu pedido na aba "Pedidos"</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Mission Statement */}
-        <View style={styles.missionSection}>
-          <Text style={styles.missionTitle}>Nossa Missão</Text>
-          <Text style={styles.missionText}>
-            Proporcionar momentos especiais através do sabor autêntico de nossas pizzas, 
-            criando experiências inesquecíveis para toda a família em um ambiente aconchegante 
-            ou no conforto da sua casa.
-          </Text>
-        </View>
+          ))}
+        </BlurView>
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -121,159 +102,132 @@ export default function AboutScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  gradient: {
     flex: 1,
   },
-  header: {
-    paddingTop: 50,
+  scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 30,
-    alignItems: 'center',
+    paddingVertical: 32,
+    gap: 24,
   },
-  logoContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  heroCard: {
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    padding: 32,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    alignItems: 'center',
+    gap: 16,
+  },
+  heroIconWrapper: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  brandName: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
-  },
-  tagline: {
-    fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    marginTop: 10,
-  },
-  storySection: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    marginHorizontal: 15,
-    borderRadius: 20,
-    padding: 25,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  color: colors.text,
-    textAlign: 'center',
-    marginBottom: 15,
-  },
-  storyText: {
-    fontSize: 16,
-    lineHeight: 24,
-  color: colors.muted,
-    textAlign: 'justify',
-  },
-  featuresSection: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginHorizontal: 15,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
-  },
-  featuresGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  featureCard: {
-    width: (width - 70) / 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 15,
-    alignItems: 'center',
-  },
-  featureIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-  backgroundColor: '#FFF5F3',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  featureTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  color: colors.text,
-    textAlign: 'center',
     marginBottom: 8,
   },
-  featureDescription: {
-    fontSize: 12,
-  color: colors.muted,
+  heroBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    color: colors.textOnPrimary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    fontSize: 13,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    fontWeight: '600',
+  },
+  heroTitle: {
+    color: colors.textOnPrimary,
+    fontSize: 32,
+    fontWeight: '700',
     textAlign: 'center',
-    lineHeight: 16,
+    marginTop: 8,
   },
-  contactSection: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    marginHorizontal: 15,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
-  },
-  infoCard: {
-    backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  infoText: {
-    marginLeft: 15,
-    flex: 1,
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#2D3436',
-    marginBottom: 3,
-  },
-  infoDescription: {
-    fontSize: 14,
-    color: '#636E72',
-  },
-  missionSection: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    marginHorizontal: 15,
-    borderRadius: 20,
-    padding: 25,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  missionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-  color: colors.primary,
-    textAlign: 'center',
-    marginBottom: 15,
-  },
-  missionText: {
+  heroSubtitle: {
+    color: 'rgba(255,255,255,0.85)',
     fontSize: 16,
     lineHeight: 24,
-    color: '#636E72',
+    textAlign: 'center',
+    maxWidth: 600,
+  },
+  highlightRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  highlightCard: {
+    flex: 1,
+    minWidth: 200,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    padding: 24,
+    alignItems: 'center',
+    gap: 12,
+  },
+  highlightTitle: {
+    color: colors.textOnPrimary,
+    fontWeight: '700',
+    fontSize: 17,
     textAlign: 'center',
   },
+  highlightDescription: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  contactCard: {
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    padding: 28,
+    gap: 20,
+  },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    gap: 16,
+    alignItems: 'center',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(37,41,46,0.08)',
+    backgroundColor: colors.surface,
+    padding: 20,
+  },
+  contactIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,107,53,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  contactTitle: {
+    color: colors.text,
+    fontWeight: '700',
+    fontSize: 17,
+  },
+  contactDescription: {
+    color: 'rgba(37,41,46,0.7)',
+    fontSize: 15,
+    lineHeight: 21,
+  },
   bottomSpacer: {
-    height: 30,
+    height: 40,
   },
 });
