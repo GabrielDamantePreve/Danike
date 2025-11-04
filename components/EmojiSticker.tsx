@@ -62,14 +62,12 @@ export default function EmojiSticker({ imageSize, stickerSource }: Props) {
   }));
 
   return (
-    <ViewShot ref={viewShotRef} options={{ format: "jpg", quality: 0.9 }}>
-      <GestureDetector gesture={composedGesture}>
-        <Animated.Image
-          source={stickerSource}
-          style={[imageStyle]}
-          resizeMode="contain"
-        />
-      </GestureDetector>
+    <GestureDetector gesture={composedGesture}>
+      <Animated.Image
+        source={stickerSource}
+        style={[imageStyle]}
+        resizeMode="contain"
+      />
     </GestureDetector>
   );
 }

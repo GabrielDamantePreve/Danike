@@ -8,7 +8,8 @@ import {
   Text, 
   ScrollView,
   Animated,
-  ActivityIndicator
+  ActivityIndicator,
+  Pressable
 } from 'react-native';
 import { colors, gradients } from '../../theme';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,6 +28,8 @@ import ImageViewer from '@/components/ImageViewer';
 import EmojiPicker from '@/components/EmojiPicker';
 import EmojiList from '@/components/EmojiList';
 import EmojiSticker from '@/components/EmojiSticker';
+import IconButton from '@/components/IconButton';
+import CircleButton from '@/components/CircleButton';
 
 const PlaceholderImage = require('@/assets/images/background-image.png');
 
@@ -215,7 +218,7 @@ export default function Index() {
                   <CircleButton onPress={onAddSticker} />
                   <IconButton icon="save-alt" label="Salvar" onPress={onSaveImageAsync} />
                 </View>
-              </View>
+              ) : null}
 
               {!showAppOptions && (
                 <View style={styles.initialActions}>
@@ -252,7 +255,7 @@ export default function Index() {
                   </View>
                 </View>
               )}
-            </BlurView>
+            </View>
           </View>
           
           <View style={styles.bottomSpacer} />
@@ -267,40 +270,6 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    width: '100%',
-    paddingVertical: 20,
-  },
-  loadingContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 999,
-  },
-  headerGradient: {
-    width: '100%',
-    paddingVertical: 24,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 32,
-    paddingBottom: 32,
-    minHeight: '100%',
-  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -314,133 +283,103 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 24,
     paddingBottom: 120,
-    position: 'relative',
   },
-  decorativeLayer: {
+  header: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  headerGradient: {
+    width: '100%',
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: colors.textOnPrimary,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.85)',
+  },
+  mainContainer: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 20,
+  },
+  centerContent: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  introBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    width: '100%',
+  },
+  introTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.textOnPrimary,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  introText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  card: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    width: '100%',
+    alignItems: 'center',
+  },
+  hint: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  loadingContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: -1,
-  },
-  decorativeBlob: {
-    position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    opacity: 0.8,
-  },
-  blobTopLeft: {
-    top: -80,
-    left: -60,
-  },
-  blobBottomRight: {
-    bottom: -100,
-    right: -90,
-  },
-  blobCenter: {
-    top: '38%',
-    right: '20%',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-  },
-  contentWrapper: {
-    width: '100%',
-    maxWidth: 900,
-    alignSelf: 'center',
-    gap: 20,
-  },
-  contentWrapperWide: {
-    maxWidth: 1120,
-    flexDirection: 'row',
-    gap: 24,
-  },
-  heroCard: {
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    padding: 32,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    alignItems: 'center',
-  },
-  heroCardWide: {
-    flex: 1,
-  },
-  heroIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
-  },
-  heroTitle: {
-    color: colors.textOnPrimary,
-    fontSize: 32,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  heroSubtitle: {
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
-    maxWidth: 600,
-  },
-  stickerCard: {
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    padding: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-  },
-  stickerCardWide: {
-    flex: 1,
-  },
-  stickerHeader: {
-    marginBottom: 24,
-  },
-  stickerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
-  },
-  stickerTitle: {
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  stickerSubtitle: {
-    color: colors.text,
-    opacity: 0.7,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  previewCanvasWrapper: {
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 107, 53, 0.2)',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    overflow: 'hidden',
-    marginBottom: 24,
-  },
-  previewCanvas: {
-    width: '100%',
-    minHeight: 420,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    zIndex: 999,
   },
   initialActions: {
+    width: '100%',
     gap: 12,
   },
   editingActions: {
     alignItems: 'center',
+    width: '100%',
   },
   quickActionsRow: {
     flexDirection: 'row',
