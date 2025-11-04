@@ -1,5 +1,15 @@
 // app/tabs/index.tsx
-import { ImageSourcePropType, View, StyleSheet, Alert, Platform, Text, ScrollView } from 'react-native';
+import { 
+  ImageSourcePropType, 
+  View, 
+  StyleSheet, 
+  Alert, 
+  Platform, 
+  Text, 
+  ScrollView,
+  Animated,
+  ActivityIndicator
+} from 'react-native';
 import { colors, gradients } from '../../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -8,7 +18,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { captureRef } from 'react-native-view-shot';
 import domtoimage from 'dom-to-image';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { StatusBar } from 'expo-status-bar';
 
 import Button from '@/components/Button';
 import ImageViewer from '@/components/ImageViewer';
@@ -26,7 +37,17 @@ export default function Index() {
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
   const [pickedEmoji, setPickedEmoji] = useState<ImageSourcePropType | undefined>(undefined);
   const [status, requestPermission] = MediaLibrary.usePermissions();
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const imageRef = useRef<any>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 1000,
+      useNativeDriver: true,
+    }).start();
+  }, [selectedImage]);
 
   const pickImageAsync = async () => {
     try {
@@ -63,6 +84,7 @@ export default function Index() {
 
   const onSaveImageAsync = async () => {
     try {
+      setIsLoading(true);
       if (!status?.granted) {
         const newPermission = await requestPermission();
         if (!newPermission.granted) {
@@ -108,22 +130,44 @@ export default function Index() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <LinearGradient colors={gradients.primary as [string, string]} style={styles.bg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
-            <Ionicons name="restaurant" size={32} color={colors.textOnPrimary} style={styles.logo} />
-            <Text style={styles.title}>Danike</Text>
-            <Text style={styles.subtitle}>Stickers divertidos em segundos</Text>
-          </View>
+      <StatusBar style="light" />
+      <LinearGradient 
+        colors={gradients.primary as [string, string]} 
+        style={styles.bg} 
+        start={{ x: 0, y: 0 }} 
+        end={{ x: 1, y: 1 }}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent} 
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
+            <LinearGradient
+              colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.05)']}
+              style={styles.headerGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Ionicons name="restaurant" size={32} color={colors.textOnPrimary} style={styles.logo} />
+              <Text style={styles.title}>Danike</Text>
+              <Text style={styles.subtitle}>Stickers divertidos em segundos</Text>
+            </LinearGradient>
+          </Animated.View>
 
           <View style={styles.mainContainer}>
             <View style={styles.centerContent}>
-              <View style={styles.introBox}>
+              <Animated.View style={[styles.introBox, { opacity: fadeAnim }]}>
                 <Text style={styles.introTitle}>Bem-vindo à Pizzaria Danike!</Text>
                 <Text style={styles.introText}>
                   Descubra o sabor autêntico da nossa pizzaria artesanal. Ingredientes frescos, ambiente acolhedor e experiências deliciosas para toda a família. Crie stickers divertidos com o tema da nossa pizzaria e compartilhe momentos especiais!
                 </Text>
-              </View>
+              </Animated.View>
+              
+              {isLoading && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.textOnPrimary} />
+                </View>
+              )}
               <View style={styles.card}>
                 <ImageViewer ref={imageRef} imgSource={PlaceholderImage} selectedImage={selectedImage} />
                 {pickedEmoji && <EmojiSticker imageSize={56} stickerSource={pickedEmoji} />}
@@ -164,10 +208,29 @@ export default function Index() {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     width: '100%',
     paddingVertical: 20,
+  },
+  loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+  },
+  headerGradient: {
+    width: '100%',
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
     flexGrow: 1,

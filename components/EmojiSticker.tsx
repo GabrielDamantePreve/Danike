@@ -60,17 +60,30 @@ export default function EmojiSticker({ imageSize, stickerSource }: Props) {
       }
     });
 
-  // Pan gesture to move the sticker
+  // Pan gesture to move the sticker - optimizado para mobile
   const drag = Gesture.Pan()
+    .minDistance(0) // Inicia o drag imediatamente
+    .onBegin(() => {
+      // Cancela animações anteriores
+    })
     .onChange((event) => {
       translateX.value += event.changeX;
       translateY.value += event.changeY;
     })
-    .onFinalize(() => {
+    .onEnd(() => {
       // Add bounce effect when releasing
-      translateX.value = withSpring(translateX.value);
-      translateY.value = withSpring(translateY.value);
+      translateX.value = withSpring(translateX.value, {
+        damping: 15,
+        stiffness: 100,
+      });
+      translateY.value = withSpring(translateY.value, {
+        damping: 15,
+        stiffness: 100,
+      });
     });
+
+  // Compõe os gestos de forma exclusiva - o tap tem prioridade
+  const composedGesture = Gesture.Exclusive(doubleTap, drag);
 
   const imageStyle = useAnimatedStyle(() => ({
     width: withSpring(scaleImage.value),
@@ -83,17 +96,13 @@ export default function EmojiSticker({ imageSize, stickerSource }: Props) {
 
   return (
     <ViewShot ref={viewShotRef} options={{ format: "jpg", quality: 0.9 }}>
-      <GestureDetector gesture={doubleTap}>
-        <GestureDetector gesture={drag}>
-          <Animated.Image
-            source={stickerSource}
-            style={[imageStyle]}
-            resizeMode="contain"
-          />
-        </GestureDetector>
+      <GestureDetector gesture={composedGesture}>
+        <Animated.Image
+          source={stickerSource}
+          style={[imageStyle]}
+          resizeMode="contain"
+        />
       </GestureDetector>
     </ViewShot>
   );
-
-  // Os gestos já estão compostos no primeiro return
 }
